@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.9.4] - 2026-05-10
+
+### Added
+- **Shot Element Support**: Introduced support for **Shot** elements using the `!!` (or `！！`) prefix. Shots are now correctly parsed, rendered in the TUI, and included in PDF exports with proper formatting.
+- **Literal Slash Support**: Added support for entering a literal `/` character by typing `//` in the command bar. This allows for searching or using paths containing slashes without triggering command parsing.
+- **Native OS File Picker**: Replaced `rfd` with `native-dialog` to provide a more robust, native file selection experience on all platforms, with a graceful TUI fallback for terminal-only environments.
+- **Normal Mode Shortcuts**: Implemented new quick-access shortcuts in normal mode for file management (`^O`, `^N`, `^S`) and search (`^F`), streamlining the writing workflow.
+
+### Changed
+- **UI Aesthetics**: Replaced legacy ASCII progress bars and UI separators with high-quality Unicode block elements (`█`, `▓`, `▒`) for a smoother, more modern "Zen" look.
+- **Home Pane Refinement**: Updated the welcome dashboard with a cleaner layout and improved state management for recent files and tutorials.
+
+### Fixed
+- **Stability**: Improved overall application robustness by replacing direct error propagation with a centralized UI error reporting system across all file operations and commands.
+- **MS Store Compliance**: Added a dedicated privacy policy document and synced manifests for Microsoft Store submission.
+
 ## [0.9.3] - 2026-05-02
 
 ### Added

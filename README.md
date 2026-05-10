@@ -23,21 +23,9 @@ cargo install fount
 ```
 
 ### Windows
-- **MSI Installer (Primary Method for Casual Users)**:
-  Download the latest `.msi` package from the [Releases](https://github.com/BeetleBot/FountTUI/releases) page.
-  > [!IMPORTANT]
-  > **Windows SmartScreen** will block the installation because the executable is not digitally signed. You **must** turn off SmartScreen completely in Windows Security settings before running the installer.
-
-- **Cargo (For Advanced Users)**: `cargo install fount` (requires [Rust](https://rustup.rs/))
-  > [!TIP]
-  > Cargo provides a seamless, source-based installation that ensures you stay on the bleeding edge of Fount's development with immediate access to the latest features and performance improvements.
-
-- **Winget**:
-  ```powershell
-  winget install BeetleBot.Fount
-  ```
-  > [!NOTE]
-  > Winget versions usually receive updates later than the official releases.
+<a href="https://apps.microsoft.com/detail/9nz3hv7n30s2?hl=en-US&gl=IN">
+  <img src="https://get.microsoft.com/images/en-us%20dark.svg" width="200" alt="Get it from Microsoft Store"/>
+</a>
 
 ### macOS
 - **Cargo**: `cargo install fount` (for best results, use a terminal with Truecolor support like iTerm2 or Ghostty)
