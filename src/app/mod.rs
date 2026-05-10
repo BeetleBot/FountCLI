@@ -670,9 +670,6 @@ impl App {
         false
     }
 
-    #[allow(dead_code)]
-
-    
 
     /// Strips a trailing `#num#` tag from a scene heading line if present.
     fn strip_scene_number_from_line(line: &str) -> &str {
