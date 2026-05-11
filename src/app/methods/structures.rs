@@ -8,6 +8,9 @@ impl App {
             include_str!("../../../assets/structures/the_hero’s_journey.fountain"),
             include_str!("../../../assets/structures/the_story_circle.fountain"),
             include_str!("../../../assets/structures/freytags_pyramid.fountain"),
+            include_str!("../../../assets/structures/john_trubys_7_key_steps.fountain"),
+            include_str!("../../../assets/structures/michael_hauges_6_stage_journey.fountain"),
+            include_str!("../../../assets/structures/the_sequence_approach.fountain"),
         ];
         
         self.structures.clear();
