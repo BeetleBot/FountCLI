@@ -26,8 +26,8 @@ pub fn draw_xray(f: &mut Frame, app: &mut App) {
 
     let accent = Color::from(theme.ui.navigator_mode_bg.clone());
     let dim = Color::from(theme.ui.dim.clone());
-    let normal_fg = theme.ui.foreground.clone().map(Color::from).unwrap_or(Color::White);
-    let normal_bg = theme.ui.background.clone().map(Color::from).unwrap_or(Color::Reset);
+    let normal_fg = theme.primary_fg();
+    let normal_bg = theme.primary_bg();
 
     let modal_w = 100u16.min(area.width.saturating_sub(4));
     let modal_h = 36u16.min(area.height.saturating_sub(2));

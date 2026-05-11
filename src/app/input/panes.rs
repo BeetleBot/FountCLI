@@ -440,7 +440,7 @@ impl App {
                     return Ok(false);
                 }
                 AppMode::Home => {
-                    let home_items = 4 + self.recent_files.len().min(5);
+                    let home_items = 5 + self.recent_files.len().min(5);
                     match key.code {
                         KeyCode::Esc => {
                             // If there's an actual file loaded, dismiss home
@@ -469,9 +469,10 @@ impl App {
                         KeyCode::Char('q') | KeyCode::Char('Q') => {
                             match key.code {
                                 KeyCode::Char('n') | KeyCode::Char('N') => self.home_selected = 0,
-                                KeyCode::Char('o') | KeyCode::Char('O') => self.home_selected = 1,
-                                KeyCode::Char('t') | KeyCode::Char('T') => self.home_selected = 2,
-                                KeyCode::Char('q') | KeyCode::Char('Q') => self.home_selected = 3,
+                                KeyCode::Char('s') | KeyCode::Char('S') => self.home_selected = 1,
+                                KeyCode::Char('o') | KeyCode::Char('O') => self.home_selected = 2,
+                                KeyCode::Char('t') | KeyCode::Char('T') => self.home_selected = 3,
+                                KeyCode::Char('q') | KeyCode::Char('Q') => self.home_selected = 4,
                                 _ => {},
                             }
                             match self.home_selected {
@@ -494,10 +495,22 @@ impl App {
                                     *cursor_moved = true;
                                 }
                                 1 => {
+                                    // New file with Structure
+                                    if self.structures.is_empty() {
+                                        self.load_structures();
+                                    }
+                                    if self.structures.is_empty() {
+                                        self.set_status("No structures found in Structures.md");
+                                    } else {
+                                        self.mode = AppMode::StructurePicker;
+                                        self.structure_selected = 0;
+                                    }
+                                }
+                                2 => {
                                     // Open File via TUI picker
                                     self.open_file_picker(FilePickerAction::Open, vec!["fountain".to_string()], None);
                                 }
-                                2 => {
+                                3 => {
                                     // Tutorial
                                     let tutorial_text = include_str!("../../../assets/tutorial.fountain");
                                     let lines: Vec<String> = tutorial_text.lines().map(|s: &str| s.to_string()).collect();
@@ -521,13 +534,13 @@ impl App {
                                     *text_changed = true;
                                     *cursor_moved = true;
                                 }
-                                3 => {
+                                4 => {
                                     // Exit App
                                     return Ok(true);
                                 }
                                 _ => {
                                     // Recent Files
-                                    let recent_idx = self.home_selected - 4;
+                                    let recent_idx = self.home_selected - 5;
                                     if recent_idx < self.recent_files.len() {
                                         let path = self.recent_files[recent_idx].clone();
                                         if let Ok(content) = fs::read_to_string(&path) {
@@ -564,6 +577,35 @@ impl App {
                                     }
                                 }
                             }
+                        }
+                        _ => {}
+                    }
+                    return Ok(false);
+                }
+                AppMode::StructurePicker => {
+                    match key.code {
+                        KeyCode::Esc => {
+                            self.mode = AppMode::Home;
+                        }
+                        KeyCode::Up | KeyCode::Char('k') => {
+                            if self.structure_selected > 0 {
+                                self.structure_selected -= 1;
+                            } else {
+                                self.structure_selected = self.structures.len().saturating_sub(1);
+                            }
+                        }
+                        KeyCode::Down | KeyCode::Char('j') => {
+                            if !self.structures.is_empty() {
+                                self.structure_selected = (self.structure_selected + 1) % self.structures.len();
+                            }
+                        }
+                        KeyCode::Enter => {
+                            self.apply_selected_structure();
+                            self.parse_document();
+                            self.update_autocomplete();
+                            self.update_layout();
+                            *text_changed = true;
+                            *cursor_moved = true;
                         }
                         _ => {}
                     }

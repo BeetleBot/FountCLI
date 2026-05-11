@@ -45,8 +45,8 @@ pub fn draw_home(f: &mut Frame, app: &mut App) {
     let accent = Color::from(theme.ui.normal_mode_bg.clone());
     let sel_bg = Color::from(theme.ui.selection_bg.clone());
     let sel_fg = Color::from(theme.ui.selection_fg.clone());
-    let normal_fg = theme.ui.foreground.clone().map(Color::from).unwrap_or(Color::White);
-    let normal_bg = theme.ui.background.clone().map(Color::from).unwrap_or(Color::Reset);
+    let normal_fg = theme.primary_fg();
+    let normal_bg = theme.primary_bg();
 
     let modal_w = 76u16.min(area.width.saturating_sub(2));
     let modal_h = 32u16.min(area.height.saturating_sub(2));
@@ -179,7 +179,7 @@ pub fn draw_home(f: &mut Frame, app: &mut App) {
     lines.push(Line::from(""));
 
     // ── Menu ──
-    let menu = ["New File", "Open File", "Tutorial", "Exit"];
+    let menu = ["New File", "New file with Structure", "Open File", "Tutorial", "Exit"];
 
     for (i, label) in menu.iter().enumerate() {
         let is_sel = i == app.home_selected;

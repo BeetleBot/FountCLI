@@ -942,6 +942,20 @@ impl Theme {
         self.name.to_lowercase().contains("light") || self.name.to_lowercase() == "paper"
     }
 
+    pub fn primary_fg(&self) -> Color {
+        self.ui.foreground.clone().map(Color::from).unwrap_or_else(|| {
+            if self.is_light() { Color::Black } else { Color::White }
+        })
+    }
+
+    pub fn primary_bg(&self) -> Color {
+        self.ui.background.clone().map(Color::from).unwrap_or(Color::Reset)
+    }
+
+    pub fn normal_style(&self) -> Style {
+        Style::default().fg(self.primary_fg()).bg(self.primary_bg())
+    }
+
     pub fn warning_style(&self) -> Style {
         Style::default().fg(Color::from(self.ui.warning.clone()))
     }

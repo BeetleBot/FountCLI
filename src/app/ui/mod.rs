@@ -2,14 +2,13 @@ pub mod panes;
 use self::panes::{
     draw_file_picker, draw_snapshots, draw_sprint_stats, home::draw_home,
     index_cards::draw_index_cards, xray::draw_xray, draw_export_modal,
-    quick_help::draw_quick_help,
+    quick_help::draw_quick_help, structure_picker::draw_structure_picker,
 };
 
 use crate::{
     app::{App, AppMode, EnsembleItem, GoalType, shortcuts},
     formatting::{RenderConfig, StringCaseExt, render_inline},
     layout::{find_visual_cursor, strip_sigils},
-    theme::HexColor,
     types::{LineType, PAGE_WIDTH, base_style},
 };
 use ratatui::{
@@ -62,6 +61,7 @@ pub fn draw(f: &mut Frame, app: &mut App) {
         AppMode::ReplaceOne | AppMode::ReplaceAll => {
             (" Replace ", Color::from(theme.ui.command_mode_bg.clone()))
         }
+        AppMode::StructurePicker => (" Structure ", Color::from(theme.ui.normal_mode_bg.clone())),
         _ => (" Prompt ", Color::from(theme.ui.command_mode_bg.clone())),
     };
 
@@ -937,12 +937,8 @@ pub fn draw(f: &mut Frame, app: &mut App) {
         let modal_area = panes::centered_rect(55, 70, area);
         f.render_widget(ratatui::widgets::Clear, modal_area);
 
-        let bg = Color::from(
-            theme.ui.background.clone().unwrap_or(HexColor("Reset".to_string())),
-        );
-        let fg = Color::from(
-            theme.ui.foreground.clone().unwrap_or(HexColor("White".to_string())),
-        );
+        let bg = theme.primary_bg();
+        let fg = theme.primary_fg();
 
         let all_shortcuts = shortcuts::get_all_shortcuts();
         let categories = shortcuts::get_categories(&all_shortcuts);
@@ -1454,7 +1450,7 @@ pub fn draw(f: &mut Frame, app: &mut App) {
     // -- Screen Blink Effect --
     if app.flash_timer.is_some() {
         f.render_widget(
-            Block::default().style(Style::default().bg(theme.ui.foreground.clone().unwrap_or(HexColor("White".to_string())).into())),
+            Block::default().style(Style::default().bg(theme.primary_fg())),
             area,
         );
     }
@@ -1499,6 +1495,10 @@ pub fn draw(f: &mut Frame, app: &mut App) {
 
     if current_view_mode == AppMode::IndexCards {
         draw_index_cards(f, app, text_area);
+    }
+
+    if app.mode == AppMode::StructurePicker {
+        draw_structure_picker(f, app);
     }
 
     if app.show_quick_help {

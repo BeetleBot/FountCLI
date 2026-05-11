@@ -30,6 +30,19 @@ pub struct NavigatorItem {
 }
 
 #[derive(Clone, Debug, Default)]
+pub struct StructureBeat {
+    pub label: String,
+    pub description: String,
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct Structure {
+    pub name: String,
+    pub description: String,
+    pub beats: Vec<StructureBeat>,
+}
+
+#[derive(Clone, Debug, Default)]
 pub struct CharacterItem {
     pub name: String,
     pub scenes_count: usize,
@@ -102,6 +115,7 @@ pub enum AppMode {
     IndexCards,
     ReplaceOne,
     ReplaceAll,
+    StructurePicker,
 }
 
 #[derive(Clone, Debug)]
@@ -347,6 +361,8 @@ pub struct App {
     pub index_cards: Vec<crate::app::methods::index_cards::IndexCard>,
     pub export_tab: usize,
     pub show_quick_help: bool,
+    pub structures: Vec<Structure>,
+    pub structure_selected: usize,
 }
 
 impl Drop for App {
@@ -531,7 +547,11 @@ impl App {
             index_cards: Vec::new(),
             export_tab: 0,
             show_quick_help: false,
+            structures: Vec::new(),
+            structure_selected: 0,
         };
+
+        app.load_structures();
 
         app.load_recent_files();
 

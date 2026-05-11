@@ -7,3 +7,4 @@ pub mod snapshots;
 pub mod sprint;
 pub mod commands;
 pub mod index_cards;
+pub mod structures;

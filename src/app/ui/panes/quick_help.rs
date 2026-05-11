@@ -1,5 +1,4 @@
 use crate::app::{App, AppMode};
-use crate::theme::HexColor;
 use ratatui::{
     Frame,
     layout::Rect,
@@ -41,7 +40,7 @@ pub fn draw_quick_help(f: &mut Frame, app: &App, area: Rect) {
         .borders(Borders::ALL)
         .border_type(BorderType::Thick)
         .border_style(Style::default().fg(Color::from(theme.ui.normal_mode_bg.clone())))
-        .style(Style::default().bg(Color::from(theme.ui.background.clone().unwrap_or(HexColor("Black".to_string())).clone())));
+        .style(theme.normal_style());
         
     f.render_widget(Clear, popup_area);
     f.render_widget(block.clone(), popup_area);

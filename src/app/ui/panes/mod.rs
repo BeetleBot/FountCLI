@@ -2,9 +2,9 @@ pub mod home;
 pub mod xray;
 pub mod index_cards;
 pub mod quick_help;
+pub mod structure_picker;
 
 use unicode_width::UnicodeWidthStr;
-use crate::theme::HexColor;
 use crate::app::App;
 use ratatui::{
     Frame,
@@ -53,7 +53,7 @@ pub fn draw_sprint_stats(f: &mut Frame, app: &mut App) {
         .borders(Borders::ALL)
         .border_type(ratatui::widgets::BorderType::Rounded)
         .border_style(theme.secondary_style())
-        .style(Style::default().bg(Color::from(theme.ui.background.clone().unwrap_or(HexColor("Reset".to_string())))).fg(Color::from(theme.ui.foreground.clone().unwrap_or(HexColor("White".to_string())))));
+        .style(theme.normal_style());
 
     let inner_area = modal_area.inner(ratatui::layout::Margin {
         horizontal: 1,
@@ -139,8 +139,8 @@ pub fn draw_file_picker(f: &mut Frame, app: &mut App, area: Rect) {
         .borders(Borders::ALL)
         .border_type(ratatui::widgets::BorderType::Rounded)
         .border_style(app.theme.secondary_style())
-        .style(Style::default().bg(Color::from(app.theme.ui.background.clone().unwrap_or(HexColor("Reset".to_string())))).fg(Color::from(app.theme.ui.foreground.clone().unwrap_or(HexColor("White".to_string())))));
-    f.render_widget(block, block_area);
+        .style(app.theme.normal_style());
+ f.render_widget(block, block_area);
 
     let inner_area = block_area.inner(ratatui::layout::Margin {
         horizontal: 2,
@@ -205,7 +205,7 @@ pub fn draw_file_picker(f: &mut Frame, app: &mut App, area: Rect) {
             let (icon, color) = if is_dir {
                 ("[D] ", app.theme.ui.navigator_mode_bg.clone().into())
             } else {
-                ("    ", app.theme.ui.foreground.clone().map(Color::from).unwrap_or(Color::White))
+                ("    ", app.theme.primary_fg())
             };
 
             let style = if is_selected {
@@ -286,7 +286,7 @@ pub fn draw_file_picker(f: &mut Frame, app: &mut App, area: Rect) {
             .borders(Borders::ALL)
             .border_type(ratatui::widgets::BorderType::Double)
             .border_style(app.theme.error_style())
-            .style(Style::default().bg(Color::from(app.theme.ui.background.clone().unwrap_or(HexColor("Reset".to_string())))));
+            .style(app.theme.normal_style());
         
         let file_name = state.target_path.as_ref().and_then(|p| p.file_name()).map(|n| n.to_string_lossy()).unwrap_or_default();
         
@@ -339,7 +339,7 @@ pub fn draw_snapshots(f: &mut Frame, app: &mut App) {
         .borders(Borders::ALL)
         .border_type(ratatui::widgets::BorderType::Rounded)
         .border_style(theme.secondary_style())
-        .style(Style::default().bg(Color::from(theme.ui.background.clone().unwrap_or(HexColor("Reset".to_string())))).fg(Color::from(theme.ui.foreground.clone().unwrap_or(HexColor("White".to_string())))));
+        .style(theme.normal_style());
 
     let header = Row::new(vec![
         Cell::from("File Name"),
@@ -399,7 +399,7 @@ pub fn draw_export_modal(f: &mut Frame, app: &App) {
         .borders(Borders::ALL)
         .border_type(ratatui::widgets::BorderType::Rounded)
         .border_style(theme.secondary_style())
-        .style(Style::default().bg(Color::from(theme.ui.background.clone().unwrap_or(HexColor("Reset".to_string())))));
+        .style(theme.normal_style());
     f.render_widget(block, modal_area);
 
     let inner_area = modal_area.inner(ratatui::layout::Margin {
