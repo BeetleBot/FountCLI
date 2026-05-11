@@ -1,27 +1,34 @@
 # Changelog
 
-## [0.9.5] - Unreleased
+## [0.9.5]
 
-### Added
+### New features
+- **Story Structure Templates**: Added the `/structure` command to instantly import narrative frameworks directly into your script. Included new templates: John Truby's 7 Key Steps, Michael Hauge's 6-Stage Journey, and The Sequence Approach.
+- **Revision Tracking System**: Implemented a comprehensive revision tracking system (`/revision on`) with visual margin indicators (`*`) and full PDF export support.
+- **Production Tags Support**: Added full support for structured inline metadata (e.g., `[[props: map]]`). Easily toggle their visibility within the editor using the `/prodtags` command, fully integrated with the X-Ray breakdown and CSV reports.
+- **Metadata Autocomplete**: Intelligent autocompletion logic is now fully supported for production tags and metadata blocks.
 - **Highlight Active Block**: A new focus tool that subtly dims all inactive text and brightly highlights your current paragraph or action line, keeping your eyes locked on your current thought. Toggle via `/set highlight`.
-- **Intelligent Auto-Save Cycler**: The Auto-Save setting now cycles through precise intervals (`[1 min]`, `[3 min]`, `[5 min]`, `[10 min]`, `[OFF]`) directly from the Settings Modal.
+- **Theme Picker**: Implemented a streamlined theme selection workflow (`/theme`) for instantly previewing and applying curated color palettes.
 - **Section Creation Shortcut**: Added `Shift+N` to instantly create a new Section in the Index Cards view.
-- **Status Bar Guidance**: The Index Cards mode now displays clear, contextual shortcut guidance in the status bar.
-- **Line Number Enhancements**: Added `/set line` (and `/set linenums`) to toggle line numbers via command. Line numbers now automatically hide themselves when Focus Mode is engaged.
-- **Theme Picker**: Implemented a streamlined theme selection workflow for instantly previewing and applying curated color palettes.
 - **Modal Editing Integration**: Successfully merged basic modal editing logic, allowing opt-in Vim-like interactions without disrupting the default Fount experience.
 
-### Changed
+### Improvements
+- **Production-Grade CSV Exports**: Massively enhanced CSV reports (Scene List, Character, Location, Notes) with page numbers, synopsis data, character dialogue statistics, and inline note extraction. Dialogue export now generates professional rehearsal sides.
+- **Nerd Font Integration**: Added optional Nerd Font icon support across UI elements and status indicators for a highly polished look.
+- **Intelligent Auto-Save Cycler**: The Auto-Save setting now cycles through precise intervals (`[1 min]`, `[3 min]`, `[5 min]`, `[10 min]`, `[OFF]`) directly from the Settings Modal.
 - **Modernized Scene Navigator**: Transformed the navigator into a clean, tree-structured outliner. Removed heavy horizontal rules in favor of minimalist tree-line spacing, eliminated "no synopsis" placeholder clutter, and implemented intelligent word-wrapping for long scene headings to prevent truncation.
 - **Index Cards Overhaul**: Upgraded the basic grid to a premium card-like interface with visual depth effects, while drastically improving real-time character typing responsiveness.
 - **Settings Modal Consolidation**: Migrated the Settings interface from a static side-pane to a sleek, centered, floating modal window that mirrors the Export and Snapshot screens.
-- **Arrow-Key Driven UI**: Completely removed all legacy `HJKL` (Vim-style) navigation logic. The application is now fully standardized on intuitive Arrow-key navigation, with `Enter` for selection and `Esc` for dismissal.
 - **Dynamic Shortcuts Registry**: The Cheat Sheet (`F1`) has been transformed into a source-driven, tabbed UI component. All shortcuts are now compiled directly into the binary, removing the need for external asset files.
 - **Unified Typewriter Mode**: Merged "Typewriter" and "Strict Typewriter" modes into a single, highly robust vertical-centering mode that keeps your cursor locked to the center of the screen.
 - **CLI Minimalism**: Completely stripped the command-line interface of all headless export flags and background diagnostic tools. The `fount` CLI is now strictly focused on its core purpose: opening files (`fount [file.fountain]`).
 - **Show Markup Polish**: The "Show Markup" setting (`/set markup`) now guarantees a 100% accurate representation of your document by exposing *every* Fountain structural marker (e.g. `#`, `=`, `.`, `!`, `!!`, `@`, `^`, `~`, `===`) when enabled.
+- **Line Number Enhancements**: Added `/set line` (and `/set linenums`) to toggle line numbers via command. Line numbers now automatically hide themselves when Focus Mode is engaged.
+- **Status Bar Guidance**: The Index Cards mode now displays clear, contextual shortcut guidance in the status bar.
 
-### Fixed
+### Fixes
+- **State Synchronization Panics**: Eliminated deep buffer desynchronization bugs causing fatal insertion index out-of-bounds panics when utilizing Shift+Enter, smart elements, multi-line pastes, and deleting index cards.
+- **Empty Breakdown Crashes**: Prevented invalid selection crashes in the X-Ray breakdown panel when scene data is completely empty.
 - **Robust Error Handling**: Audited layout and parsing routines to safely propagate errors, ensuring a crash-free experience during complex document edits.
 - **Index Cards Stability**: Rewrote the grid rendering and navigation math to prevent underflow crashes during high-speed, multi-card scrolling in large scripts.
 - **Rendering Performance**: Optimized `build_layout` and `parse_document` routines for a faster, distraction-free rendering loop during rapid typing.
