@@ -310,6 +310,10 @@ pub fn draw(f: &mut Frame, app: &mut App) {
                         bst.fg = Some(c);
                     }
 
+                    if app.config.highlight_active_action && !row.is_active {
+                        bst = bst.add_modifier(Modifier::DIM);
+                    }
+
                     let mut display = if row.is_active || !app.config.hide_markup {
                         row.raw_text.clone()
                     } else {

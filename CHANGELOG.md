@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.9.5] - Unreleased
+
+### Added
+- **Highlight Active Block**: A new focus tool that subtly dims all inactive text and brightly highlights your current paragraph or action line, keeping your eyes locked on your current thought. Toggle via `/set highlight`.
+- **Intelligent Auto-Save Cycler**: The Auto-Save setting now cycles through precise intervals (`[1 min]`, `[3 min]`, `[5 min]`, `[10 min]`, `[OFF]`) directly from the Settings Modal.
+- **Section Creation Shortcut**: Added `Shift+N` to instantly create a new Section in the Index Cards view.
+- **Status Bar Guidance**: The Index Cards mode now displays clear, contextual shortcut guidance in the status bar.
+
+### Changed
+- **Settings Modal Consolidation**: Migrated the Settings interface from a static side-pane to a sleek, centered, floating modal window that mirrors the Export and Snapshot screens.
+- **Arrow-Key Driven UI**: Completely removed all legacy `HJKL` (Vim-style) navigation logic. The application is now fully standardized on intuitive Arrow-key navigation, with `Enter` for selection and `Esc` for dismissal.
+- **Dynamic Shortcuts Registry**: The Cheat Sheet (`F1`) has been transformed into a source-driven, tabbed UI component. All shortcuts are now compiled directly into the binary, removing the need for external asset files.
+- **Unified Typewriter Mode**: Merged "Typewriter" and "Strict Typewriter" modes into a single, highly robust vertical-centering mode that keeps your cursor locked to the center of the screen.
+- **CLI Minimalism**: Completely stripped the command-line interface of all headless export flags and background diagnostic tools. The `fount` CLI is now strictly focused on its core purpose: opening files (`fount [file.fountain]`).
+- **Show Markup Polish**: The "Show Markup" setting (`/set markup`) now guarantees a 100% accurate representation of your document by exposing *every* Fountain structural marker (e.g. `#`, `=`, `.`, `!`, `!!`, `@`, `^`, `~`, `===`) when enabled.
+
+### Fixed
+- **Index Cards Stability**: Rewrote the grid rendering and navigation math to prevent underflow crashes during high-speed, multi-card scrolling in large scripts.
+
 ## [0.9.4] - 2026-05-10
 
 ### Added

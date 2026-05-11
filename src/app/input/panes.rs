@@ -131,7 +131,7 @@ impl App {
                     return Ok(false);
                 }
                 AppMode::SettingsPane => {
-                    let settings_count = 10;
+                    let settings_count = 11;
                     match key.code {
                         KeyCode::Esc => {
                             self.mode = AppMode::Normal;
@@ -165,32 +165,52 @@ impl App {
                                     let _ = crate::config::Config::save_setting("hide_markup", self.config.hide_markup);
                                 }
                                 4 => {
+                                    self.config.highlight_active_action = !self.config.highlight_active_action;
+                                    let _ = crate::config::Config::save_setting("highlight_active_action", self.config.highlight_active_action);
+                                }
+                                5 => {
                                     self.config.show_page_numbers = !self.config.show_page_numbers;
                                     let _ = crate::config::Config::save_setting("show_page_numbers", self.config.show_page_numbers);
                                 }
-                                5 => {
+                                6 => {
                                     self.config.show_scene_numbers = !self.config.show_scene_numbers;
                                     let _ = crate::config::Config::save_setting("show_scene_numbers", self.config.show_scene_numbers);
                                 }
-                                6 => {
+                                7 => {
                                     self.config.auto_contd = !self.config.auto_contd;
                                     let _ = crate::config::Config::save_setting("auto_contd", self.config.auto_contd);
                                 }
-                                7 => {
-                                    self.config.auto_save = !self.config.auto_save;
-                                    let _ = crate::config::Config::save_setting("auto_save", self.config.auto_save);
-                                }
                                 8 => {
+                                    if !self.config.auto_save {
+                                        self.config.auto_save = true;
+                                        self.config.auto_save_interval = 60;
+                                    } else {
+                                        match self.config.auto_save_interval {
+                                            60 => self.config.auto_save_interval = 180,
+                                            180 => self.config.auto_save_interval = 300,
+                                            300 => self.config.auto_save_interval = 600,
+                                            600 => {
+                                                self.config.auto_save = false;
+                                                self.config.auto_save_interval = 300;
+                                            }
+                                            _ => self.config.auto_save_interval = 60,
+                                        }
+                                    }
+                                    let _ = crate::config::Config::save_setting("auto_save", self.config.auto_save);
+                                    let _ = crate::config::Config::save_string_setting("auto_save_interval", &self.config.auto_save_interval.to_string());
+                                }
+                                9 => {
                                     self.config.autocomplete = !self.config.autocomplete;
                                     let _ = crate::config::Config::save_setting("autocomplete", self.config.autocomplete);
                                 }
-                                9 => {
+                                10 => {
                                     self.config.auto_paragraph_breaks = !self.config.auto_paragraph_breaks;
                                     let _ = crate::config::Config::save_setting("auto_paragraph_breaks", self.config.auto_paragraph_breaks);
                                 }
                                 _ => {}
                             }
                             *text_changed = true;
+
                             self.update_layout();
                         }
                         _ => {}

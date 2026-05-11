@@ -170,6 +170,8 @@ pub struct Config {
     
     pub focus_mode: bool,
 
+    pub highlight_active_action: bool,
+
     
     
     
@@ -276,6 +278,7 @@ impl Default for Config {
             auto_title_page: false,
             typewriter_mode: true,
             focus_mode: false,
+            highlight_active_action: false,
             break_actions: true,
             goto_end: false,
 
@@ -345,6 +348,7 @@ impl Config {
                         "auto_paragraph_breaks" => self.auto_paragraph_breaks = true,
                         "auto_title_page" => self.auto_title_page = true,
                         "typewriter_mode" | "typewriter" => self.typewriter_mode = true,
+                        "highlight_active_action" => self.highlight_active_action = true,
                         "focus_mode" => self.focus_mode = true,
                         "break_actions" => self.break_actions = true,
                         "goto_end" => self.goto_end = true,
@@ -396,6 +400,7 @@ impl Config {
                         "auto_paragraph_breaks" => self.auto_paragraph_breaks = false,
                         "auto_title_page" => self.auto_title_page = false,
                         "typewriter_mode" | "typewriter" => self.typewriter_mode = false,
+                        "highlight_active_action" => self.highlight_active_action = false,
                         "focus_mode" => self.focus_mode = false,
                         "break_actions" => self.break_actions = false,
                         "goto_end" => self.goto_end = false,
