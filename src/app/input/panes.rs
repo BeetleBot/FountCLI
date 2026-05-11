@@ -347,7 +347,7 @@ impl App {
                                 // Screenplay Options
                                 match self.selected_export_option {
                                     0 => {
-                                        let formats = ["pdf", "fountain", "fdx"];
+                                        let formats = ["pdf", "fountain"];
                                         if let Some(idx) = formats.iter().position(|&x| x == self.config.export_format.as_str()) {
                                             self.config.export_format = formats[(idx + 1) % formats.len()].to_string();
                                         } else {
@@ -400,10 +400,6 @@ impl App {
                                         let (ext, default_name) = match self.config.export_format.as_str() {
                                             "pdf" => ("pdf", "screenplay.pdf"),
                                             "fountain" => ("fountain", "screenplay.fountain"),
-                                            "fdx" => {
-                                                self.set_status("FDX export is coming soon.");
-                                                return Ok(false);
-                                            },
                                             _ => ("pdf", "screenplay.pdf"),
                                         };
                                         self.open_file_picker(FilePickerAction::ExportScript, vec![ext.to_string()], Some(default_name.to_string()));

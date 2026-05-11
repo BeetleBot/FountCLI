@@ -475,7 +475,6 @@ pub fn draw_export_modal(f: &mut Frame, app: &App) {
         let format_label = match app.config.export_format.as_str() {
             "pdf" => "PDF",
             "fountain" => "Fountain",
-            "fdx" => "FDX (Coming Soon)",
             _ => "PDF",
         };
         let font_label = match app.config.export_font.as_str() {
