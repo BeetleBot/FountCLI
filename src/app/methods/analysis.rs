@@ -445,6 +445,7 @@ impl App {
             })
             .collect();
 
+        let has_breakdowns = !scene_breakdowns.is_empty();
         self.xray_data = Some(XRayData {
             characters,
             total_dialogue_words,
@@ -456,7 +457,11 @@ impl App {
         self.xray_scroll = 0;
         self.xray_tab = 0;
         self.xray_breakdown_idx = 0;
-        self.xray_breakdown_state.select(Some(0));
+        if has_breakdowns {
+            self.xray_breakdown_state.select(Some(0));
+        } else {
+            self.xray_breakdown_state.select(None);
+        }
         self.mode = AppMode::XRay;
     }
 
