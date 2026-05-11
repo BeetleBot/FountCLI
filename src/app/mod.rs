@@ -665,11 +665,13 @@ impl App {
     }
 
     pub fn switch_next_buffer(&mut self) {
+        if self.buffers.len() <= 1 { return; }
         let next = (self.current_buf_idx + 1) % self.buffers.len();
         self.switch_buffer(next);
     }
 
     pub fn switch_prev_buffer(&mut self) {
+        if self.buffers.len() <= 1 { return; }
         let prev = if self.current_buf_idx == 0 {
             self.buffers.len() - 1
         } else {

@@ -84,6 +84,7 @@ impl App {
         self.lines.splice(card_b.start_line..=card_b.end_line, block_a);
         self.lines.splice(card_a.start_line..=card_a.end_line, block_b);
 
+        self.revised_lines.resize(self.lines.len(), false);
         self.dirty = true;
         self.parse_document();
         self.update_layout();
@@ -120,8 +121,12 @@ impl App {
         
         for (i, line) in new_lines.into_iter().enumerate() {
             self.lines.insert(insert_line + i, line);
+            if insert_line + i <= self.revised_lines.len() {
+                self.revised_lines.insert(insert_line + i, false);
+            }
         }
-        
+        self.revised_lines.resize(self.lines.len(), false);
+
         self.parse_document();
         self.update_layout();
         
@@ -139,9 +144,14 @@ impl App {
         self.save_state(true);
         let card = &cards[idx];
         self.lines.drain(card.start_line..=card.end_line);
+        if card.end_line < self.revised_lines.len() {
+            let end = card.end_line.min(self.revised_lines.len().saturating_sub(1));
+            self.revised_lines.drain(card.start_line..=end);
+        }
         if self.lines.is_empty() {
             self.lines.push(String::new());
         }
+        self.revised_lines.resize(self.lines.len(), false);
         self.parse_document();
         self.update_layout();
         self.selected_card_idx = idx.saturating_sub(1);
@@ -171,7 +181,7 @@ impl App {
         // Update Synopsis
         let mut syn_found = false;
         for i in card.start_line + 1..=card.end_line {
-            if self.types[i] == LineType::Synopsis {
+            if i < self.types.len() && self.types[i] == LineType::Synopsis {
                 self.lines[i] = format!("= {}", synopsis);
                 syn_found = true;
                 break;
@@ -180,7 +190,11 @@ impl App {
         
         if !syn_found {
             self.lines.insert(card.start_line + 1, format!("= {}", synopsis));
+            if card.start_line + 1 <= self.revised_lines.len() {
+                self.revised_lines.insert(card.start_line + 1, false);
+            }
         }
+        self.revised_lines.resize(self.lines.len(), false);
         
         self.parse_document();
         self.update_layout();
