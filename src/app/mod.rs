@@ -1172,18 +1172,23 @@ impl App {
                     *update_target_x = true;
                 }
             }
-            // Jump to scene number: /s50
-            s if s.starts_with('s') && s[1..].chars().all(|c| c.is_ascii_digit()) => {
-                let scene_num_str = &s[1..];
+            // Jump to scene number: /s50 or /s 50
+            "s" | _ if cmd.starts_with('s') && (cmd.len() == 1 || cmd[1..].chars().all(|c| c.is_ascii_digit())) => {
+                let scene_num_str = if cmd.len() > 1 {
+                    &cmd[1..]
+                } else {
+                    args.first().unwrap_or(&"")
+                };
+
                 if let Ok(num) = scene_num_str.parse::<usize>() {
-                    if let Some(pos) = self.scenes.iter().position(|item| {
-                        item.scene_num
-                            .as_ref()
-                            .map(|n: &String| n.trim_matches('#').parse::<usize>().unwrap_or(0))
-                            == Some(num)
+                    if let Some(row) = self.layout.iter().find(|r| {
+                        r.line_type == crate::types::LineType::SceneHeading
+                            && r.scene_num
+                                .as_ref()
+                                .map(|n| n.trim_matches('#').parse::<usize>().unwrap_or(0))
+                                == Some(num)
                     }) {
-                        let line_idx = self.scenes[pos].line_idx;
-                        self.cursor_y = line_idx;
+                        self.cursor_y = row.line_idx;
                         self.cursor_x = 0;
                         *cursor_moved = true;
                         *update_target_x = true;
