@@ -601,13 +601,13 @@ use super::*;
     fn test_open_scene_navigator_colors() {
         let mut app = create_empty_app();
         app.lines = vec![
-            "EXT. WOODS - DAY [[red]]".to_string(),
+            "EXT. WOODS - DAY [[sceneclr: red]]".to_string(),
             "Action line.".to_string(),
             "".to_string(),
-            "[[blue]]".to_string(),
+            "[[sceneclr: blue]]".to_string(),
             "".to_string(),
             "INT. CABIN - NIGHT".to_string(),
-            "[[marker green]]".to_string(),
+            "[[sceneclr: green]]".to_string(),
         ];
         app.parse_document();
         app.update_layout();
@@ -615,14 +615,14 @@ use super::*;
 
         assert_eq!(app.scenes.len(), 2);
         assert_eq!(app.scenes[0].label, "EXT. WOODS - DAY");
-        assert_eq!(app.scenes[0].color, Some(Color::Red));
+        assert_eq!(app.scenes[0].color, Some(Color::Blue));
         assert_eq!(app.scenes[1].label, "INT. CABIN - NIGHT");
-        assert_eq!(app.scenes[1].color, Some(Color::Blue));
+        assert_eq!(app.scenes[1].color, Some(Color::Green));
         
         app.lines = vec![
             "INT. CABIN - NIGHT".to_string(),
             "Action here.".to_string(),
-            "[[marker magenta]]".to_string(),
+            "[[sceneclr: magenta]]".to_string(),
         ];
         app.parse_document();
         app.update_layout();

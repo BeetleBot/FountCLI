@@ -54,12 +54,6 @@ impl App {
                 } else if card.preview.is_empty() && (lt == LineType::Action || lt == LineType::Dialogue) {
                     card.preview = line.clone();
                 }
-
-                if card.color.is_none() {
-                    card.color = self.layout.iter()
-                        .find(|r| r.line_idx == i)
-                        .and_then(|r| r.override_color);
-                }
             }
         }
 

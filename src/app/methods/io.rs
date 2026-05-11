@@ -333,82 +333,139 @@ impl App {
 
     pub fn export_breakdown_csv(&self, path: &std::path::Path) -> std::io::Result<()> {
         let mut csv = String::new();
-        csv.push_str("Scene Number,Int/Ext,Location,Time,Estimated Length (8ths),Characters\n");
+        csv.push_str("Scene Number,Int/Ext,Location,Time,Length,Cast,Props,VFX,SFX,Wardrobe,Makeup,Music,Tags\n");
 
-        let mut current_scene = None;
-        let mut scene_lines = 0;
-        let mut current_scene_chars = std::collections::HashSet::new();
-        let mut scenes_data = Vec::new();
+        #[derive(Default)]
+        struct SceneBreakdown {
+            num: String,
+            int_ext: String,
+            location: String,
+            time: String,
+            length: String,
+            cast: std::collections::BTreeSet<String>,
+            props: std::collections::BTreeSet<String>,
+            vfx: std::collections::BTreeSet<String>,
+            sfx: std::collections::BTreeSet<String>,
+            wardrobe: std::collections::BTreeSet<String>,
+            makeup: std::collections::BTreeSet<String>,
+            music: std::collections::BTreeSet<String>,
+            tags: std::collections::BTreeSet<String>,
+        }
 
+        let mut scene_data: Vec<SceneBreakdown> = Vec::new();
+        let mut current_scene: Option<SceneBreakdown> = None;
+        let mut scene_visual_lines = 0;
+
+        // Pass 1: Collect scene metadata and basic structure from layout
+        // (Layout is better for scene headings and pagination-based length)
         for row in &self.layout {
             if row.line_type == crate::types::LineType::SceneHeading {
-                if let Some((s_num, heading)) = current_scene.take() {
-                    scenes_data.push((s_num, heading, scene_lines, current_scene_chars));
+                if let Some(mut s) = current_scene.take() {
+                    let eights_total = scene_visual_lines as f32 / 7.0;
+                    let eights_rounded = eights_total.round() as usize;
+                    let full_pages = eights_rounded / 8;
+                    let remaining_eighths = eights_rounded % 8;
+                    s.length = if full_pages > 0 && remaining_eighths > 0 {
+                        format!("{} {}/8", full_pages, remaining_eighths)
+                    } else if full_pages > 0 {
+                        format!("{}", full_pages)
+                    } else if remaining_eighths > 0 {
+                        format!("{}/8", remaining_eighths)
+                    } else { "1/8".to_string() };
+                    scene_data.push(s);
                 }
 
-                let s_num = row.scene_num.clone().unwrap_or_default();
-                let heading = crate::layout::strip_sigils(&row.raw_text, row.line_type).to_string();
-                current_scene = Some((s_num, heading));
-                scene_lines = 1;
-                current_scene_chars = std::collections::HashSet::new();
+                let mut s = SceneBreakdown::default();
+                s.num = row.scene_num.clone().unwrap_or_default();
+                let heading = crate::layout::strip_sigils(&row.raw_text, row.line_type).to_uppercase();
+                if let Some((ie, rest)) = heading.split_once('.') {
+                    s.int_ext = ie.trim().to_string();
+                    if let Some((l, t)) = rest.split_once('-') {
+                        s.location = l.trim().to_string();
+                        s.time = t.trim().to_string();
+                    } else { s.location = rest.trim().to_string(); }
+                } else { s.location = heading; }
+
+                current_scene = Some(s);
+                scene_visual_lines = 1;
             } else if current_scene.is_some() {
-                scene_lines += 1;
-                if row.line_type == crate::types::LineType::Character || row.line_type == crate::types::LineType::DualDialogueCharacter {
-                    let mut name = crate::layout::strip_sigils(&row.raw_text, row.line_type).trim().to_string();
-                    if let Some(idx) = name.find('(') {
-                        name = name[..idx].trim().to_string();
-                    }
-                    if !name.is_empty() {
-                        current_scene_chars.insert(name.to_uppercase());
-                    }
-                }
+                scene_visual_lines += 1;
             }
         }
 
-        if let Some((s_num, heading)) = current_scene.take() {
-            scenes_data.push((s_num, heading, scene_lines, current_scene_chars));
-        }
-
-        for (s_num, heading, visual_lines, chars_set) in scenes_data {
-            let eights_total = visual_lines as f32 / 7.0;
+        if let Some(mut s) = current_scene.take() {
+            let eights_total = scene_visual_lines as f32 / 7.0;
             let eights_rounded = eights_total.round() as usize;
-
             let full_pages = eights_rounded / 8;
             let remaining_eighths = eights_rounded % 8;
-
-            let length_str = if full_pages > 0 && remaining_eighths > 0 {
+            s.length = if full_pages > 0 && remaining_eighths > 0 {
                 format!("{} {}/8", full_pages, remaining_eighths)
             } else if full_pages > 0 {
                 format!("{}", full_pages)
             } else if remaining_eighths > 0 {
                 format!("{}/8", remaining_eighths)
-            } else {
-                "1/8".to_string()
-            };
+            } else { "1/8".to_string() };
+            scene_data.push(s);
+        }
 
-            let mut int_ext = String::new();
-            let loc;
-            let mut time = String::new();
-            let h = heading.to_uppercase();
-            if let Some((ie, rest)) = h.split_once('.') {
-                int_ext = ie.trim().to_string();
-                if let Some((l, t)) = rest.split_once('-') {
-                    loc = l.trim().to_string();
-                    time = t.trim().to_string();
-                } else {
-                    loc = rest.trim().to_string();
+        // Pass 2: Collect tags from raw lines and associate with scenes
+        let mut scene_idx = 0;
+        for (i, (line, &lt)) in self.lines.iter().zip(self.types.iter()).enumerate() {
+            if lt == crate::types::LineType::SceneHeading && i > 0 {
+                if scene_idx + 1 < scene_data.len() {
+                    scene_idx += 1;
                 }
-            } else {
-                loc = h;
             }
 
-            let mut chars_list: Vec<_> = chars_set.into_iter().collect();
-            chars_list.sort();
-            let chars_str = chars_list.join(", ").replace("\"", "\"\"");
+            if let Some(s) = scene_data.get_mut(scene_idx) {
+                // Character name collection (special case, not a tag)
+                if lt == crate::types::LineType::Character || lt == crate::types::LineType::DualDialogueCharacter {
+                    let mut name = crate::layout::strip_sigils(line, lt).trim().to_string();
+                    if let Some(idx) = name.find('(') { name = name[..idx].trim().to_string(); }
+                    if !name.is_empty() { s.cast.insert(name.to_uppercase()); }
+                }
+
+                // Tag extraction
+                let mut start_search = 0;
+                while let Some(start) = line[start_search..].find("[[") {
+                    let abs_start = start_search + start;
+                    if let Some(end) = line[abs_start..].find("]]") {
+                        let abs_end = abs_start + end;
+                        let content = &line[abs_start + 2..abs_end];
+                        if let Some((key, val)) = content.split_once(':') {
+                            let key = key.trim().to_uppercase();
+                            let values: Vec<_> = val.split(',').map(|v| v.trim()).filter(|v| !v.is_empty()).collect();
+                            for v in values {
+                                match key.as_str() {
+                                    "CAST" => { s.cast.insert(v.to_uppercase()); }
+                                    "PROPS" => { s.props.insert(v.to_string()); }
+                                    "VFX" => { s.vfx.insert(v.to_string()); }
+                                    "SFX" => { s.sfx.insert(v.to_string()); }
+                                    "WARDROBE" => { s.wardrobe.insert(v.to_string()); }
+                                    "MAKEUP" => { s.makeup.insert(v.to_string()); }
+                                    "MUSIC" => { s.music.insert(v.to_string()); }
+                                    _ => { s.tags.insert(format!("{}:{}", key, v)); }
+                                }
+                            }
+                        }
+                        start_search = abs_end + 2;
+                    } else { break; }
+                }
+            }
+        }
+
+        // Final CSV generation
+        for s in scene_data {
+            let escape_csv = |set: &std::collections::BTreeSet<String>| -> String {
+                let joined = set.iter().cloned().collect::<Vec<_>>().join(", ");
+                joined.replace("\"", "\"\"")
+            };
 
             csv.push_str(&format!(
-                "\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\"\n",
-                s_num, int_ext, loc, time, length_str, chars_str
+                "\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\"\n",
+                s.num, s.int_ext, s.location, s.time, s.length,
+                escape_csv(&s.cast), escape_csv(&s.props), escape_csv(&s.vfx), escape_csv(&s.sfx),
+                escape_csv(&s.wardrobe), escape_csv(&s.makeup), escape_csv(&s.music), escape_csv(&s.tags)
             ));
         }
 

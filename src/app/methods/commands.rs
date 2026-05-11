@@ -1,4 +1,4 @@
-use crate::app::App;
+use crate::app::{App, AppMode};
 use crate::types::LineType;
 use crate::formatting::StringCaseExt;
 
@@ -152,6 +152,41 @@ impl crate::app::App {
                     self.suggestion = Some(loc[input.len()..].to_string());
                 }
             }
+        }
+    }
+
+    pub fn trigger_metadata_autocomplete(&mut self) {
+        self.mode = AppMode::MetadataAutocomplete;
+        self.metadata_query.clear();
+        self.update_metadata_suggestions();
+        self.metadata_state.select(Some(0));
+    }
+
+    pub fn update_metadata_suggestions(&mut self) {
+        let all_tags = vec![
+            "props:", "wardrobe:", "makeup:", "sfx:", "vfx:", "music:", "cast:", 
+            "dnotes:", "scenestatus:", "tags:", "subtext:", "scenetype:", "sceneclr:",
+            "note:", "marker:", "synopsis:",
+        ];
+        
+        let query = self.metadata_query.to_lowercase();
+        self.metadata_suggestions = all_tags
+            .into_iter()
+            .filter(|t| t.starts_with(&query))
+            .map(|t| t.to_string())
+            .collect();
+            
+        // Adjust selection if it's out of bounds
+        let len = self.metadata_suggestions.len();
+        if len > 0 {
+            let current = self.metadata_state.selected().unwrap_or(0);
+            if current >= len {
+                self.metadata_state.select(Some(len - 1));
+            } else {
+                self.metadata_state.select(Some(current));
+            }
+        } else {
+            self.metadata_state.select(None);
         }
     }
 }

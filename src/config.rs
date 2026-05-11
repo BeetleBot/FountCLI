@@ -263,6 +263,9 @@ pub struct Config {
 
     /// Show line numbers in the gutter
     pub show_line_numbers: bool,
+
+    /// Show production tags in the editor
+    pub show_production_tags: bool,
 }
 
 impl Default for Config {
@@ -311,6 +314,7 @@ impl Default for Config {
             export_synopses: false,
             export_font: "courier_prime".to_string(),
             show_line_numbers: true,
+            show_production_tags: false,
         }
     }
 }
@@ -388,6 +392,7 @@ impl Config {
                         "export_synopses" => self.export_synopses = true,
                         "export_font" => self.export_font = val,
                         "line_numbers" => self.show_line_numbers = true,
+                        "prodtags" => self.show_production_tags = true,
                         _ => {}
                     }
                 } else if cmd == "unset" {
@@ -417,6 +422,7 @@ impl Config {
                         "export_sections" => self.export_sections = false,
                         "export_synopses" => self.export_synopses = false,
                         "line_numbers" => self.show_line_numbers = false,
+                        "prodtags" => self.show_production_tags = false,
                         _ => {}
                     }
                 }

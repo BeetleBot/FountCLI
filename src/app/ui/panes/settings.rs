@@ -12,7 +12,7 @@ pub fn draw_settings_modal(f: &mut Frame, app: &mut App, area: Rect) {
     let theme = &app.theme;
     let mode_bg = Color::from(theme.ui.normal_mode_bg.clone());
 
-    let modal_area = centered_rect(40, 50, area);
+    let modal_area = centered_rect(40, 70, area);
     f.render_widget(Clear, modal_area);
 
     let block = Block::default()
@@ -72,123 +72,122 @@ pub fn draw_settings_modal(f: &mut Frame, app: &mut App, area: Rect) {
         ]))
     };
 
-    // List of settings options (sync with execute_command /set)
-    options.push(render_option(
-        "Focus Mode",
-        if app.config.focus_mode {
-            "[ON]"
+    let render_header = |title: &str| -> ListItem {
+        ListItem::new(Line::from(vec![
+            Span::styled(format!("── {} ──", title), Style::default().fg(mode_bg).add_modifier(Modifier::DIM)),
+        ]))
+    };
+
+    let get_icon = |nerd: &str, plain: &str| -> String {
+        if app.config.use_nerd_fonts {
+            format!("{} ", nerd)
         } else {
-            "[OFF]"
-        },
-        app.selected_setting == 0,
-    ));
-    options.push(render_option(
-        "Line Numbers",
-        if app.config.show_line_numbers {
-            "[ON]"
+            plain.to_string()
+        }
+    };
+
+    let get_val = |condition: bool| -> String {
+        if app.config.use_nerd_fonts {
+            if condition { "󰄲 ".to_string() } else { "󰄱 ".to_string() }
         } else {
-            "[OFF]"
-        },
+            if condition { "[ON]".to_string() } else { "[OFF]".to_string() }
+        }
+    };
+
+    // Category: View
+    options.push(render_header("VIEW"));
+    options.push(render_option(
+        &format!("{}Focus Mode", get_icon("󰈈", "")),
+        &get_val(app.config.focus_mode),
         app.selected_setting == 1,
     ));
     options.push(render_option(
-        "Typewriter Mode",
-        if app.config.typewriter_mode {
-            "[ON]"
-        } else {
-            "[OFF]"
-        },
+        &format!("{}Typewriter", get_icon("󰌌", "")),
+        &get_val(app.config.typewriter_mode),
         app.selected_setting == 2,
     ));
     options.push(render_option(
-        "Show Markup",
-        if !app.config.hide_markup {
-            if app.config.use_nerd_fonts { "󰄲 " } else { "[ON]" }
-        } else {
-            if app.config.use_nerd_fonts { "󰄱 " } else { "[OFF]" }
-        },
+        &format!("{}Line Numbers", get_icon("󰰍", "")),
+        &get_val(app.config.show_line_numbers),
         app.selected_setting == 3,
     ));
     options.push(render_option(
-        "Highlight Block",
-        if app.config.highlight_active_action {
-            if app.config.use_nerd_fonts { "󰄲 " } else { "[ON]" }
-        } else {
-            if app.config.use_nerd_fonts { "󰄱 " } else { "[OFF]" }
-        },
+        &format!("{}Nerd Icons", get_icon("󰏇", "")),
+        &get_val(app.config.use_nerd_fonts),
         app.selected_setting == 4,
     ));
+
+    // Category: Fountain
+    options.push(render_header("FOUNTAIN"));
     options.push(render_option(
-        "Page Numbers",
-        if app.config.show_page_numbers {
-            if app.config.use_nerd_fonts { "󰄲 " } else { "[ON]" }
-        } else {
-            if app.config.use_nerd_fonts { "󰄱 " } else { "[OFF]" }
-        },
-        app.selected_setting == 5,
-    ));
-    options.push(render_option(
-        "Scene Numbers",
-        if app.config.show_scene_numbers {
-            if app.config.use_nerd_fonts { "󰄲 " } else { "[ON]" }
-        } else {
-            if app.config.use_nerd_fonts { "󰄱 " } else { "[OFF]" }
-        },
+        &format!("{}Show Markup", get_icon("󰈝", "")),
+        &get_val(!app.config.hide_markup),
         app.selected_setting == 6,
     ));
     options.push(render_option(
-        "Auto (CONT'D)",
-        if app.config.auto_contd {
-            if app.config.use_nerd_fonts { "󰄲 " } else { "[ON]" }
-        } else {
-            if app.config.use_nerd_fonts { "󰄱 " } else { "[OFF]" }
-        },
+        &format!("{}Prod. Tags", get_icon("󰓹", "")),
+        &get_val(app.config.show_production_tags),
         app.selected_setting == 7,
     ));
+    options.push(render_option(
+        &format!("{}Highlight Active", get_icon("󰉈", "")),
+        &get_val(app.config.highlight_active_action),
+        app.selected_setting == 8,
+    ));
 
+    // Category: Structure
+    options.push(render_header("STRUCTURE"));
+    options.push(render_option(
+        &format!("{}Scene Numbers", get_icon("󰎩", "")),
+        &get_val(app.config.show_scene_numbers),
+        app.selected_setting == 10,
+    ));
+    options.push(render_option(
+        &format!("{}Page Numbers", get_icon("󰈙", "")),
+        &get_val(app.config.show_page_numbers),
+        app.selected_setting == 11,
+    ));
+
+    // Category: Writing
+    options.push(render_header("WRITING"));
+    options.push(render_option(
+        &format!("{}Autocomplete", get_icon("󰧑", "")),
+        &get_val(app.config.autocomplete),
+        app.selected_setting == 13,
+    ));
+    options.push(render_option(
+        &format!("{}Auto (CONT'D)", get_icon("󰑔", "")),
+        &get_val(app.config.auto_contd),
+        app.selected_setting == 14,
+    ));
+    options.push(render_option(
+        &format!("{}Smart Breaks", get_icon("󰉓", "")),
+        &get_val(app.config.auto_paragraph_breaks),
+        app.selected_setting == 15,
+    ));
+
+    // Category: System
+    options.push(render_header("SYSTEM"));
     let auto_save_val = if !app.config.auto_save {
-        "[OFF]".to_string()
+        if app.config.use_nerd_fonts { "󰄱 ".to_string() } else { "[OFF]".to_string() }
     } else {
         match app.config.auto_save_interval {
-            60 => "[1 min]".to_string(),
-            180 => "[3 min]".to_string(),
-            300 => "[5 min]".to_string(),
-            600 => "[10 min]".to_string(),
+            60 => if app.config.use_nerd_fonts { "󰄲 1m".to_string() } else { "[1 min]".to_string() },
+            180 => if app.config.use_nerd_fonts { "󰄲 3m".to_string() } else { "[3 min]".to_string() },
+            300 => if app.config.use_nerd_fonts { "󰄲 5m".to_string() } else { "[5 min]".to_string() },
+            600 => if app.config.use_nerd_fonts { "󰄲 10m".to_string() } else { "[10 min]".to_string() },
             v => format!("[{}s]", v),
         }
     };
     options.push(render_option(
-        "Auto-Save",
+        &format!("{}Auto-Save", get_icon("󰆓", "")),
         &auto_save_val,
-        app.selected_setting == 8,
-    ));
-
-    options.push(render_option(
-        "Autocomplete",
-        if app.config.autocomplete {
-            if app.config.use_nerd_fonts { "󰄲 " } else { "[ON]" }
-        } else {
-            if app.config.use_nerd_fonts { "󰄱 " } else { "[OFF]" }
-        },
-        app.selected_setting == 9,
+        app.selected_setting == 17,
     ));
     options.push(render_option(
-        "Smart Breaks",
-        if app.config.auto_paragraph_breaks {
-            if app.config.use_nerd_fonts { "󰄲 " } else { "[ON]" }
-        } else {
-            if app.config.use_nerd_fonts { "󰄱 " } else { "[OFF]" }
-        },
-        app.selected_setting == 10,
-    ));
-    options.push(render_option(
-        "Nerd Icons",
-        if app.config.use_nerd_fonts {
-            if app.config.use_nerd_fonts { "󰄲 " } else { "[ON]" }
-        } else {
-            if app.config.use_nerd_fonts { "󰄱 " } else { "[OFF]" }
-        },
-        app.selected_setting == 11,
+        &format!("{}Active Theme", get_icon("󰏘", "")),
+        &app.config.theme,
+        app.selected_setting == 18,
     ));
 
     f.render_widget(List::new(options), layout[0]);

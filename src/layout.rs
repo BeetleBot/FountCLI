@@ -298,6 +298,9 @@ pub fn build_layout(
     let empty_fmt = Rc::new(LineFormatting::default());
 
     for (i, (line, &lt)) in lines.iter().zip(types.iter()).enumerate() {
+        if lt == LineType::Note && !config.show_production_tags && i != active_line {
+            continue;
+        }
         let is_active = i == active_line;
         let mut scene_num: Option<String> = None;
         let mut raw_line = Cow::Borrowed(line.as_str());
@@ -314,7 +317,12 @@ pub fn build_layout(
                     .find("]]")
                     .unwrap_or(raw_line.len() - start);
                 let content = &raw_line[start + 2..start + end_offset];
-                active_note_color = get_marker_color(content, theme);
+                let color_name = if content.to_lowercase().starts_with("sceneclr:") {
+                    content["sceneclr:".len()..].trim()
+                } else {
+                    content
+                };
+                active_note_color = get_marker_color(color_name, theme);
             }
             line_override_color = active_note_color;
 
@@ -335,7 +343,10 @@ pub fn build_layout(
                     .find("]]")
                     .unwrap_or(raw_line.len() - start);
                 let content = &raw_line[start + 2..start + end_offset];
-                line_override_color = get_marker_color(content, theme);
+                if content.to_lowercase().starts_with("sceneclr:") {
+                    let color_name = content["sceneclr:".len()..].trim();
+                    line_override_color = get_marker_color(color_name, theme);
+                }
             }
         }
 
@@ -1466,7 +1477,7 @@ mod layout_tests {
     #[test]
     fn test_strip_sigils_inline_note_in_heading() {
         let config = Config::default();
-        let lines = vec![".HEADING [[yellow note]]".to_string()];
+        let lines = vec![".HEADING [[sceneclr: yellow]]".to_string()];
         let types = vec![LineType::SceneHeading];
         let layout = build_layout(&lines, &types, 999, &config, &Theme::default(), &mut Vec::new());
 

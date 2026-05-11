@@ -290,6 +290,7 @@ pub struct RenderConfig {
 
     
     pub no_formatting: bool,
+    pub is_active: bool,
 }
 
 pub fn render_inline(

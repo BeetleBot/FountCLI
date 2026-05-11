@@ -144,6 +144,7 @@ pub fn get_all_shortcuts() -> Vec<Shortcut> {
         sc!("Settings", "/set autocomplete", "Autocomplete", "Character/scene hints", Accent),
         sc!("Settings", "/set autobreaks", "Smart breaks", "Auto-paragraph spacing", Accent),
         sc!("Settings", "/set line", "Line numbers", "Show leftmost gutter", Accent),
+        sc!("Settings", "/prodtags", "Production Tags", "Toggle metadata visibility", Accent),
 
     ]
 }

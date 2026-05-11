@@ -292,55 +292,54 @@ pub fn base_style(lt: LineType, config: &Config, theme: &Theme) -> Style {
 }
 
 pub fn get_marker_color(note_text: &str, theme: &Theme) -> Option<Color> {
+    let note_text = note_text.trim();
+    let lower_text = note_text.to_lowercase();
+    let is_light = theme.is_light();
+
+    // 1. Check for departmental keys first
+    
+    // Technical & FX (Blue)
+    if lower_text.starts_with("sfx:") || lower_text.starts_with("vfx:") || lower_text.starts_with("music:") {
+        return Some(if is_light { Color::Rgb(0, 95, 135) } else { Color::Blue });
+    }
+    
+    // Physical Assets (Cyan)
+    if lower_text.starts_with("props:") || lower_text.starts_with("wardrobe:") || lower_text.starts_with("makeup:") {
+        return Some(if is_light { Color::Rgb(0, 135, 135) } else { Color::Cyan });
+    }
+    
+    // Narrative & Talent (Green)
+    if lower_text.starts_with("cast:") || lower_text.starts_with("subtext:") {
+        return Some(if is_light { Color::Rgb(0, 135, 0) } else { Color::Green });
+    }
+    
+    // Management & Workflow (Magenta)
+    if lower_text.starts_with("scenestatus:") || lower_text.starts_with("tags:") {
+        return Some(if is_light { Color::Rgb(135, 0, 135) } else { Color::Magenta });
+    }
+    
+    // Directional (Yellow)
+    if lower_text.starts_with("dnotes:") || lower_text.starts_with("scenetype:") {
+        return Some(if is_light { Color::Rgb(135, 135, 0) } else { Color::Yellow });
+    }
+
+    // 2. Handle sceneclr: prefix by recursively calling with the stripped value
+    if lower_text.starts_with("sceneclr:") {
+        return get_marker_color(note_text["sceneclr:".len()..].trim(), theme);
+    }
+
+    // 3. Fallback to existing color name logic
     let mut words = note_text.split_whitespace();
     let first_word = words.next()?.to_lowercase();
 
-    let is_light = theme.is_light();
-
     let color_from_str = |w: &str| -> Option<Color> {
         match w {
-            "red" => {
-                if is_light {
-                    Some(Color::Rgb(175, 0, 0))
-                } else {
-                    Some(Color::Red)
-                }
-            }
-            "blue" => {
-                if is_light {
-                    Some(Color::Rgb(0, 95, 135))
-                } else {
-                    Some(Color::Blue)
-                }
-            }
-            "green" => {
-                if is_light {
-                    Some(Color::Rgb(0, 135, 0))
-                } else {
-                    Some(Color::Green)
-                }
-            }
-            "pink" | "magenta" => {
-                if is_light {
-                    Some(Color::Rgb(135, 0, 135))
-                } else {
-                    Some(Color::Magenta)
-                }
-            }
-            "cyan" | "teal" => {
-                if is_light {
-                    Some(Color::Rgb(0, 135, 135))
-                } else {
-                    Some(Color::Cyan)
-                }
-            }
-            "yellow" => {
-                if is_light {
-                    Some(Color::Rgb(135, 135, 0))
-                } else {
-                    Some(Color::Yellow)
-                }
-            }
+            "red" => Some(if is_light { Color::Rgb(175, 0, 0) } else { Color::Red }),
+            "blue" => Some(if is_light { Color::Rgb(0, 95, 135) } else { Color::Blue }),
+            "green" => Some(if is_light { Color::Rgb(0, 135, 0) } else { Color::Green }),
+            "pink" | "magenta" => Some(if is_light { Color::Rgb(135, 0, 135) } else { Color::Magenta }),
+            "cyan" | "teal" => Some(if is_light { Color::Rgb(0, 135, 135) } else { Color::Cyan }),
+            "yellow" => Some(if is_light { Color::Rgb(135, 135, 0) } else { Color::Yellow }),
             "orange" | "brown" => Some(Color::Rgb(255, 165, 0)),
             "gray" | "grey" => Some(Color::Gray),
             _ => None,
@@ -349,8 +348,7 @@ pub fn get_marker_color(note_text: &str, theme: &Theme) -> Option<Color> {
 
     if first_word == "marker" {
         if let Some(second_word) = words.next() {
-            let second_lower = second_word.to_lowercase();
-            if let Some(c) = color_from_str(&second_lower) {
+            if let Some(c) = color_from_str(&second_word.to_lowercase()) {
                 return Some(c);
             }
         }

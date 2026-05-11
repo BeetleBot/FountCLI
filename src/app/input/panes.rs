@@ -11,6 +11,77 @@ impl App {
         let shift = key.modifiers.contains(KeyModifiers::SHIFT);
         let alt = key.modifiers.contains(KeyModifiers::ALT);
         match self.mode {
+                AppMode::MetadataAutocomplete => {
+                    match key.code {
+                        KeyCode::Esc => {
+                            self.mode = AppMode::Normal;
+                            self.metadata_query.clear();
+                        }
+                        KeyCode::Up => {
+                            let current = self.metadata_state.selected().unwrap_or(0);
+                            let next = if current == 0 {
+                                self.metadata_suggestions.len().saturating_sub(1)
+                            } else {
+                                current - 1
+                            };
+                            self.metadata_state.select(Some(next));
+                        }
+                        KeyCode::Down => {
+                            let current = self.metadata_state.selected().unwrap_or(0);
+                            let next = (current + 1) % self.metadata_suggestions.len().max(1);
+                            self.metadata_state.select(Some(next));
+                        }
+                        KeyCode::Enter | KeyCode::Tab => {
+                            if let Some(selected) = self.metadata_state.selected() {
+                                if let Some(tag) = self.metadata_suggestions.get(selected).cloned() {
+                                    // Insert the rest of the tag
+                                    let query_len = self.metadata_query.len();
+                                    let remaining = &tag[query_len..];
+                                    self.insert_str(remaining);
+                                    
+                                    *text_changed = true;
+                                    *cursor_moved = true;
+                                    *update_target_x = true;
+                                }
+                            }
+                            self.mode = AppMode::Normal;
+                            self.metadata_query.clear();
+                        }
+                        KeyCode::Backspace => {
+                            if self.metadata_query.is_empty() {
+                                self.mode = AppMode::Normal;
+                                // Also backspace the [ [
+                                self.backspace();
+                                self.backspace();
+                                *text_changed = true;
+                                *cursor_moved = true;
+                            } else {
+                                self.metadata_query.pop();
+                                self.update_metadata_suggestions();
+                            }
+                        }
+                        KeyCode::Char(c) if !ctrl => {
+                            if c == ' ' || c == ']' {
+                                // Close if space or ]
+                                self.mode = AppMode::Normal;
+                                self.insert_char(c);
+                                if c == ' ' {
+                                    self.insert_str("]] ");
+                                }
+                                *text_changed = true;
+                                *cursor_moved = true;
+                            } else {
+                                self.metadata_query.push(c);
+                                self.insert_char(c);
+                                self.update_metadata_suggestions();
+                                *text_changed = true;
+                                *cursor_moved = true;
+                            }
+                        }
+                        _ => {}
+                    }
+                    return Ok(false);
+                }
                 AppMode::Search => {
                     match key.code {
                         KeyCode::Esc => {
@@ -131,56 +202,82 @@ impl App {
                     return Ok(false);
                 }
                 AppMode::SettingsPane => {
-                    let settings_count = 12;
+                    let settings_count = 19;
                     match key.code {
                         KeyCode::Esc => {
                             self.mode = AppMode::Normal;
                         }
                         KeyCode::Up => {
-                            self.selected_setting = if self.selected_setting == 0 {
+                            let mut next = if self.selected_setting == 0 {
                                 settings_count - 1
                             } else {
                                 self.selected_setting - 1
                             };
+                            // Skip headers: 0, 5, 9, 12, 16
+                            while [0, 5, 9, 12, 16].contains(&next) {
+                                next = if next == 0 { settings_count - 1 } else { next - 1 };
+                            }
+                            self.selected_setting = next;
                         }
                         KeyCode::Down => {
-                            self.selected_setting = (self.selected_setting + 1) % settings_count;
+                            let mut next = (self.selected_setting + 1) % settings_count;
+                            // Skip headers: 0, 5, 9, 12, 16
+                            while [0, 5, 9, 12, 16].contains(&next) {
+                                next = (next + 1) % settings_count;
+                            }
+                            self.selected_setting = next;
                         }
                         KeyCode::Enter | KeyCode::Char(' ') => {
                             match self.selected_setting {
-                                0 => {
+                                1 => {
                                     self.config.focus_mode = !self.config.focus_mode;
                                     let _ = crate::config::Config::save_setting("focus_mode", self.config.focus_mode);
-                                }
-                                1 => {
-                                    self.config.show_line_numbers = !self.config.show_line_numbers;
-                                    let _ = crate::config::Config::save_setting("line_numbers", self.config.show_line_numbers);
                                 }
                                 2 => {
                                     self.config.typewriter_mode = !self.config.typewriter_mode;
                                     let _ = crate::config::Config::save_setting("typewriter_mode", self.config.typewriter_mode);
                                 }
                                 3 => {
+                                    self.config.show_line_numbers = !self.config.show_line_numbers;
+                                    let _ = crate::config::Config::save_setting("line_numbers", self.config.show_line_numbers);
+                                }
+                                4 => {
+                                    self.config.use_nerd_fonts = !self.config.use_nerd_fonts;
+                                    let _ = crate::config::Config::save_setting("use_nerd_fonts", self.config.use_nerd_fonts);
+                                }
+                                6 => {
                                     self.config.hide_markup = !self.config.hide_markup;
                                     let _ = crate::config::Config::save_setting("hide_markup", self.config.hide_markup);
                                 }
-                                4 => {
+                                7 => {
+                                    self.config.show_production_tags = !self.config.show_production_tags;
+                                    let _ = crate::config::Config::save_setting("prodtags", self.config.show_production_tags);
+                                }
+                                8 => {
                                     self.config.highlight_active_action = !self.config.highlight_active_action;
                                     let _ = crate::config::Config::save_setting("highlight_active_action", self.config.highlight_active_action);
                                 }
-                                5 => {
-                                    self.config.show_page_numbers = !self.config.show_page_numbers;
-                                    let _ = crate::config::Config::save_setting("show_page_numbers", self.config.show_page_numbers);
-                                }
-                                6 => {
+                                10 => {
                                     self.config.show_scene_numbers = !self.config.show_scene_numbers;
                                     let _ = crate::config::Config::save_setting("show_scene_numbers", self.config.show_scene_numbers);
                                 }
-                                7 => {
+                                11 => {
+                                    self.config.show_page_numbers = !self.config.show_page_numbers;
+                                    let _ = crate::config::Config::save_setting("show_page_numbers", self.config.show_page_numbers);
+                                }
+                                13 => {
+                                    self.config.autocomplete = !self.config.autocomplete;
+                                    let _ = crate::config::Config::save_setting("autocomplete", self.config.autocomplete);
+                                }
+                                14 => {
                                     self.config.auto_contd = !self.config.auto_contd;
                                     let _ = crate::config::Config::save_setting("auto_contd", self.config.auto_contd);
                                 }
-                                8 => {
+                                15 => {
+                                    self.config.auto_paragraph_breaks = !self.config.auto_paragraph_breaks;
+                                    let _ = crate::config::Config::save_setting("auto_paragraph_breaks", self.config.auto_paragraph_breaks);
+                                }
+                                17 => {
                                     if !self.config.auto_save {
                                         self.config.auto_save = true;
                                         self.config.auto_save_interval = 60;
@@ -199,22 +296,12 @@ impl App {
                                     let _ = crate::config::Config::save_setting("auto_save", self.config.auto_save);
                                     let _ = crate::config::Config::save_string_setting("auto_save_interval", &self.config.auto_save_interval.to_string());
                                 }
-                                9 => {
-                                    self.config.autocomplete = !self.config.autocomplete;
-                                    let _ = crate::config::Config::save_setting("autocomplete", self.config.autocomplete);
-                                }
-                                10 => {
-                                    self.config.auto_paragraph_breaks = !self.config.auto_paragraph_breaks;
-                                    let _ = crate::config::Config::save_setting("auto_paragraph_breaks", self.config.auto_paragraph_breaks);
-                                }
-                                11 => {
-                                    self.config.use_nerd_fonts = !self.config.use_nerd_fonts;
-                                    let _ = crate::config::Config::save_setting("use_nerd_fonts", self.config.use_nerd_fonts);
+                                18 => {
+                                    self.mode = AppMode::ThemePicker;
                                 }
                                 _ => {}
                             }
                             *text_changed = true;
-
                             self.update_layout();
                         }
                         _ => {}
@@ -765,14 +852,14 @@ impl App {
                             self.mode = AppMode::Normal;
                             self.xray_data = None;
                         }
-                        KeyCode::Left | KeyCode::Char('h') => {
+                        KeyCode::Left => {
                             if self.xray_tab > 0 {
                                 self.xray_tab -= 1;
                                 self.xray_scroll = 0;
                             }
                         }
-                        KeyCode::Right | KeyCode::Char('l') => {
-                            if self.xray_tab < 2 {
+                        KeyCode::Right => {
+                            if self.xray_tab < 3 {
                                 self.xray_tab += 1;
                                 self.xray_scroll = 0;
                             }
@@ -780,11 +867,30 @@ impl App {
                         KeyCode::Char('1') => { self.xray_tab = 0; self.xray_scroll = 0; }
                         KeyCode::Char('2') => { self.xray_tab = 1; self.xray_scroll = 0; }
                         KeyCode::Char('3') => { self.xray_tab = 2; self.xray_scroll = 0; }
-                        KeyCode::Up | KeyCode::Char('k') => {
-                            self.xray_scroll = self.xray_scroll.saturating_sub(1);
+                        KeyCode::Char('4') => { self.xray_tab = 3; self.xray_scroll = 0; }
+                        KeyCode::Up => {
+                            if self.xray_tab == 3 {
+                                if let Some(_data) = &self.xray_data {
+                                    if self.xray_breakdown_idx > 0 {
+                                        self.xray_breakdown_idx -= 1;
+                                        self.xray_breakdown_state.select(Some(self.xray_breakdown_idx));
+                                    }
+                                }
+                            } else {
+                                self.xray_scroll = self.xray_scroll.saturating_sub(1);
+                            }
                         }
-                        KeyCode::Down | KeyCode::Char('j') => {
-                            self.xray_scroll += 1;
+                        KeyCode::Down => {
+                            if self.xray_tab == 3 {
+                                if let Some(data) = &self.xray_data {
+                                    if self.xray_breakdown_idx + 1 < data.scene_breakdown.len() {
+                                        self.xray_breakdown_idx += 1;
+                                        self.xray_breakdown_state.select(Some(self.xray_breakdown_idx));
+                                    }
+                                }
+                            } else {
+                                self.xray_scroll += 1;
+                            }
                         }
                         KeyCode::PageUp => {
                             self.xray_scroll = self.xray_scroll.saturating_sub(10);

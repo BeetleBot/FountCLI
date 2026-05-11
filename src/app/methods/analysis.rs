@@ -1,7 +1,6 @@
 use crate::formatting::StringCaseExt;
 use crate::app::{App, AppMode, EnsembleItem, CharacterItem, NavigatorItem};
 use crate::layout::{strip_sigils, find_visual_cursor};
-use ratatui::style::Color;
 use crate::types::LineType;
 use crate::parser::Parser;
 
@@ -61,11 +60,20 @@ impl App {
         self.nav_original_pos = Some((self.cursor_y, self.cursor_x));
         self.scenes.clear();
         let mut current_scene: Option<NavigatorItem> = None;
-        let mut last_color: Option<Color> = None;
 
         for row in &self.layout {
+            // Pick up explicit scene colors from notes
             if row.line_type == LineType::Note {
-                last_color = row.override_color;
+                if let Some(start) = row.raw_text.find("[[") {
+                    if let Some(end) = row.raw_text[start..].find("]]") {
+                        let content = &row.raw_text[start + 2..start + end];
+                        if content.to_lowercase().starts_with("sceneclr:") {
+                            if let Some(ref mut s) = current_scene {
+                                s.color = row.override_color;
+                            }
+                        }
+                    }
+                }
             }
 
             if row.line_type == LineType::Section {
@@ -75,16 +83,14 @@ impl App {
                 let label = strip_sigils(&row.raw_text, row.line_type)
                     .trim()
                     .to_string();
-                let color = row.override_color.or(last_color);
                 current_scene = Some(NavigatorItem {
                     line_idx: row.line_idx,
                     label,
                     is_section: true,
                     synopses: Vec::new(),
-                    color,
+                    color: row.override_color,
                     ..Default::default()
                 });
-                last_color = None;
             } else if row.line_type == LineType::SceneHeading {
                 if let Some(s) = current_scene.take() {
                     self.scenes.push(s);
@@ -98,16 +104,14 @@ impl App {
                     }
                 }
                 let label = raw_heading.trim().to_uppercase_1to1();
-                let color = row.override_color.or(last_color);
                 current_scene = Some(NavigatorItem {
                     line_idx: row.line_idx,
                     label,
                     is_section: false,
                     scene_num: row.scene_num.clone(),
                     synopses: Vec::new(),
-                    color,
+                    color: row.override_color,
                 });
-                last_color = None;
             } else if row.line_type == LineType::Synopsis {
                 if let Some(ref mut s) = current_scene {
                     let note_text = strip_sigils(&row.raw_text, row.line_type).to_string();
@@ -115,22 +119,7 @@ impl App {
                         s.synopses.push(note_text);
                     }
                 }
-                last_color = None;
-            } else if !matches!(
-                row.line_type,
-                LineType::Empty | LineType::Note | LineType::Synopsis
-            ) {
-                last_color = None;
             }
-
-            if let Some(ref mut s) = current_scene
-                && s.color.is_none() {
-                    if let Some(c) = row.override_color {
-                        s.color = Some(c);
-                    } else if let Some(c) = row.fmt.note_color.values().next() {
-                        s.color = Some(*c);
-                    }
-                }
         }
         if let Some(s) = current_scene {
             self.scenes.push(s);
@@ -233,8 +222,9 @@ impl App {
 
     pub fn compute_xray(&mut self) {
         use std::collections::HashMap;
-        use crate::app::{XRayData, XRayCharacter, XRayScene, PacingBlock};
+        use crate::app::{XRayData, XRayCharacter, XRayScene, PacingBlock, XRaySceneBreakdown};
         use crate::types::LINES_PER_PAGE;
+        use crate::layout::SCENE_NUM_RE;
 
         let mut char_stats: HashMap<String, (usize, usize)> = HashMap::new(); // name -> (words, lines)
         let mut current_character: Option<String> = None;
@@ -250,6 +240,67 @@ impl App {
         // Pacing: per-page action vs dialogue counts
         let mut pacing_map: HashMap<usize, (usize, usize)> = HashMap::new(); // page -> (action, dialogue)
         let mut current_page: usize = 1;
+
+        // Breakdown: Department/Key -> List of unique assets
+        let mut global_breakdown: std::collections::BTreeMap<String, std::collections::BTreeSet<String>> = std::collections::BTreeMap::new();
+        let mut scene_breakdowns: Vec<XRaySceneBreakdown> = Vec::new();
+        let mut current_scene_tags: std::collections::BTreeMap<String, std::collections::BTreeSet<String>> = std::collections::BTreeMap::new();
+        let mut last_scene_label = String::new();
+        let mut last_scene_num = None;
+
+        for (_i, (line, &lt)) in self.lines.iter().zip(self.types.iter()).enumerate() {
+            if lt == LineType::SceneHeading {
+                if !last_scene_label.is_empty() || !current_scene_tags.is_empty() {
+                    scene_breakdowns.push(XRaySceneBreakdown {
+                        label: last_scene_label.clone(),
+                        scene_num: last_scene_num.clone(),
+                        breakdown: std::mem::take(&mut current_scene_tags),
+                    });
+                }
+                let mut label = strip_sigils(line, lt).to_string();
+                while let Some(start) = label.find("[[") {
+                    if let Some(end_offset) = label[start..].find("]]") {
+                        label.replace_range(start..start + end_offset + 2, "");
+                    } else { break; }
+                }
+                last_scene_label = label.trim().to_uppercase();
+                // Find scene num if possible (optional for breakdown but nice)
+                last_scene_num = if line.trim_end().ends_with('#') && let Some(caps) = SCENE_NUM_RE.captures(line) {
+                    Some(caps[2].trim().to_string())
+                } else { None };
+            }
+
+            // Extract tags from ANY line (including hidden ones)
+            let mut start_search = 0;
+            while let Some(start) = line[start_search..].find("[[") {
+                let abs_start = start_search + start;
+                if let Some(end) = line[abs_start..].find("]]") {
+                    let abs_end = abs_start + end;
+                    let content = &line[abs_start + 2..abs_end];
+                    if let Some((key, val)) = content.split_once(':') {
+                        let key = key.trim().to_uppercase();
+                        if !key.is_empty() {
+                            for v in val.split(',') {
+                                let v_trimmed = v.trim();
+                                if !v_trimmed.is_empty() {
+                                    global_breakdown.entry(key.clone()).or_default().insert(v_trimmed.to_string());
+                                    current_scene_tags.entry(key.clone()).or_default().insert(v_trimmed.to_string());
+                                }
+                            }
+                        }
+                    }
+                    start_search = abs_end + 2;
+                } else { break; }
+            }
+        }
+        // Last scene
+        if !last_scene_label.is_empty() || !current_scene_tags.is_empty() {
+            scene_breakdowns.push(XRaySceneBreakdown {
+                label: last_scene_label,
+                scene_num: last_scene_num,
+                breakdown: std::mem::take(&mut current_scene_tags),
+            });
+        }
 
         for row in &self.layout {
             // Track page boundaries
@@ -353,7 +404,7 @@ impl App {
         if in_scene {
             let page_count = current_scene_visual_rows as f32 / LINES_PER_PAGE as f32;
             scenes.push(XRayScene {
-                label: current_scene_label,
+                label: current_scene_label.clone(),
                 scene_num: current_scene_num,
                 page_count,
                 is_over_limit: page_count > 3.0,
@@ -399,9 +450,13 @@ impl App {
             total_dialogue_words,
             scenes,
             pacing_map: pacing,
+            global_breakdown: global_breakdown,
+            scene_breakdown: scene_breakdowns,
         });
         self.xray_scroll = 0;
         self.xray_tab = 0;
+        self.xray_breakdown_idx = 0;
+        self.xray_breakdown_state.select(Some(0));
         self.mode = AppMode::XRay;
     }
 
@@ -552,6 +607,7 @@ impl App {
             }
         }
         self.update_index_cards();
+        self.update_metadata();
     }
 }
 

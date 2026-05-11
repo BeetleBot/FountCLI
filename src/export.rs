@@ -185,6 +185,7 @@ pub fn export_document(
                 meta_key_end,
                 no_color: config.no_color || !with_ansi,
                 no_formatting: config.no_formatting || !with_ansi,
+                is_active: false,
             },
             &empty_highlights,
             &empty_highlights,

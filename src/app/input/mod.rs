@@ -93,23 +93,32 @@ impl App {
                             && y < self.settings_area.y + self.settings_area.height
                         {
                             let rel_y = (y - self.settings_area.y) as usize;
-                            if rel_y > 0 && rel_y <= 10 {
+                            if rel_y > 0 && rel_y <= 19 {
                                 let setting_idx = rel_y - 1;
+                                
+                                // Headers: 0, 5, 9, 12, 16
+                                if [0, 5, 9, 12, 16].contains(&setting_idx) {
+                                    return Ok(false);
+                                }
+
                                 self.selected_setting = setting_idx;
 
                                 if x >= self.settings_area.x + self.settings_area.width - 5 {
                                     let desc = match self.selected_setting {
-                                        0 => {
-                                            "Always center the cursor, even at the start of the file."
-                                        }
-                                        1 => "Periodically save the current buffer to disk.",
-                                        2 => "Display scene numbers in the left margin.",
-                                        3 => "Display page numbers in the right margin.",
-                                        4 => "Hide Fountain markup unless the line is active.",
-                                        5 => "Enable scene heading/character name completion.",
-                                        6 => "Automatically append (CONT'D) to character names.",
-                                        7 => "Insert paragraph breaks after screenplay elements.",
-                                        8 => "Hide the UI bars for a distraction-free view.",
+                                        1 => "Hide the UI bars for a distraction-free view.",
+                                        2 => "Always center the cursor, even at the start of the file.",
+                                        3 => "Display line numbers in the left gutter.",
+                                        4 => "Use Nerd Font icons in the UI.",
+                                        6 => "Hide Fountain markup unless the line is active.",
+                                        7 => "Show production tags and markers in the layout.",
+                                        8 => "Highlight the active action line.",
+                                        10 => "Display scene numbers in the left margin.",
+                                        11 => "Display page numbers in the right margin.",
+                                        13 => "Enable scene heading/character name completion.",
+                                        14 => "Automatically append (CONT'D) to character names.",
+                                        15 => "Insert paragraph breaks after screenplay elements.",
+                                        17 => "Periodically save the current buffer to disk.",
+                                        18 => "Switch the active UI theme.",
                                         _ => "",
                                     };
                                     if !desc.is_empty() {
@@ -117,27 +126,20 @@ impl App {
                                     }
                                 } else {
                                     match self.selected_setting {
-                                        0 => {
-                                            self.config.typewriter_mode =
-                                                !self.config.typewriter_mode
-                                        }
-                                        1 => self.config.auto_save = !self.config.auto_save,
-                                        2 => {
-                                            self.config.show_scene_numbers =
-                                                !self.config.show_scene_numbers
-                                        }
-                                        3 => {
-                                            self.config.show_page_numbers =
-                                                !self.config.show_page_numbers
-                                        }
-                                        4 => self.config.hide_markup = !self.config.hide_markup,
-                                        5 => self.config.autocomplete = !self.config.autocomplete,
-                                        6 => self.config.auto_contd = !self.config.auto_contd,
-                                        7 => {
-                                            self.config.auto_paragraph_breaks =
-                                                !self.config.auto_paragraph_breaks
-                                        }
-                                        8 => self.config.focus_mode = !self.config.focus_mode,
+                                        1 => self.config.focus_mode = !self.config.focus_mode,
+                                        2 => self.config.typewriter_mode = !self.config.typewriter_mode,
+                                        3 => self.config.show_line_numbers = !self.config.show_line_numbers,
+                                        4 => self.config.use_nerd_fonts = !self.config.use_nerd_fonts,
+                                        6 => self.config.hide_markup = !self.config.hide_markup,
+                                        7 => self.config.show_production_tags = !self.config.show_production_tags,
+                                        8 => self.config.highlight_active_action = !self.config.highlight_active_action,
+                                        10 => self.config.show_scene_numbers = !self.config.show_scene_numbers,
+                                        11 => self.config.show_page_numbers = !self.config.show_page_numbers,
+                                        13 => self.config.autocomplete = !self.config.autocomplete,
+                                        14 => self.config.auto_contd = !self.config.auto_contd,
+                                        15 => self.config.auto_paragraph_breaks = !self.config.auto_paragraph_breaks,
+                                        17 => self.config.auto_save = !self.config.auto_save,
+                                        18 => self.mode = AppMode::ThemePicker,
                                         _ => {}
                                     }
                                     *text_changed = true;

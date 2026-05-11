@@ -117,6 +117,7 @@ pub enum AppMode {
     ReplaceAll,
     StructurePicker,
     ThemePicker,
+    MetadataAutocomplete,
 }
 
 #[derive(Clone, Debug)]
@@ -149,6 +150,15 @@ pub struct XRayData {
     pub total_dialogue_words: usize,
     pub scenes: Vec<XRayScene>,
     pub pacing_map: Vec<PacingBlock>,
+    pub global_breakdown: std::collections::BTreeMap<String, std::collections::BTreeSet<String>>,
+    pub scene_breakdown: Vec<XRaySceneBreakdown>,
+}
+
+#[derive(Clone, Debug)]
+pub struct XRaySceneBreakdown {
+    pub label: String,
+    pub scene_num: Option<String>,
+    pub breakdown: std::collections::BTreeMap<String, std::collections::BTreeSet<String>>,
 }
 
 #[derive(PartialEq, Debug, Clone, Default)]
@@ -272,6 +282,8 @@ pub struct App {
     pub revision_mode: bool,
     pub revised_lines: Vec<bool>,
 
+    pub metadata: crate::metadata::MetadataStore,
+
     pub mode: AppMode,
     pub previous_mode: AppMode,
 
@@ -310,6 +322,9 @@ pub struct App {
     pub ensemble_state: ListState,
 
     pub selected_setting: usize,
+    pub metadata_suggestions: Vec<String>,
+    pub metadata_state: ListState,
+    pub metadata_query: String,
 
     pub selected_export_option: usize,
 
@@ -352,6 +367,8 @@ pub struct App {
     pub xray_data: Option<XRayData>,
     pub xray_scroll: usize,
     pub xray_tab: usize,
+    pub xray_breakdown_idx: usize,
+    pub xray_breakdown_state: ListState,
     pub save_indicator_timer: Option<Instant>,
 
     pub selected_card_idx: usize,
@@ -482,6 +499,7 @@ impl App {
             redo_stack: Vec::new(),
             revision_mode: false,
             revised_lines: Vec::new(),
+            metadata: crate::metadata::MetadataStore::new(),
             last_edit: LastEdit::None,
 
             mode: initial_mode,
@@ -508,6 +526,9 @@ impl App {
             selected_ensemble_idx: 0,
             ensemble_state: ListState::default(),
             selected_setting: 0,
+            metadata_suggestions: Vec::new(),
+            metadata_state: ListState::default(),
+            metadata_query: String::new(),
             selected_export_option: 0,
             sidebar_area: Rect::default(),
             settings_area: Rect::default(),
@@ -539,6 +560,8 @@ impl App {
             xray_data: None,
             xray_scroll: 0,
             xray_tab: 0,
+            xray_breakdown_idx: 0,
+            xray_breakdown_state: ListState::default(),
             save_indicator_timer: None,
 
             selected_card_idx: 0,
@@ -1058,6 +1081,7 @@ impl App {
                         "focus" => self.config.focus_mode = val,
                         "highlight" => self.config.highlight_active_action = val,
                         "line" | "linenums" => self.config.show_line_numbers = val,
+                        "prodtags" => self.config.show_production_tags = val,
                         _ => self.set_error(&format!("Unknown option: {}", opt)),
                     }
                     *text_changed = true;
@@ -1085,6 +1109,9 @@ impl App {
                         "highlight" => self.config.highlight_active_action = !self.config.highlight_active_action,
                         "line" | "linenums" => {
                             self.config.show_line_numbers = !self.config.show_line_numbers
+                        }
+                        "prodtags" => {
+                            self.config.show_production_tags = !self.config.show_production_tags
                         }
                         _ => self.set_error(&format!("Unknown option: {}", opt)),
                     }
@@ -1388,6 +1415,12 @@ impl App {
             }
             "xray" => {
                 self.compute_xray();
+            }
+            "prodtags" => {
+                self.config.show_production_tags = !self.config.show_production_tags;
+                let status = if self.config.show_production_tags { "ENABLED" } else { "DISABLED" };
+                self.set_status(&format!("Production tags visibility {}", status));
+                *text_changed = true;
             }
             _ => {
                 self.set_error(&format!("Unknown command: /{}", cmd));

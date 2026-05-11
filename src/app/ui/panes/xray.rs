@@ -4,12 +4,12 @@ use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, BorderType, Clear, Paragraph},
+    widgets::{Block, Borders, BorderType, Clear, Paragraph, List, ListItem},
 };
 
 pub fn draw_xray(f: &mut Frame, app: &mut App) {
     let area = f.area();
-    let theme = &app.theme;
+    let theme = app.theme.clone();
 
     // Dim the background
     let buf = f.buffer_mut();
@@ -71,6 +71,11 @@ pub fn draw_xray(f: &mut Frame, app: &mut App) {
         } else {
             theme.secondary_style()
         }),
+        Span::styled(" 4: Breakdown ", if app.xray_tab == 3 {
+            Style::default().fg(theme.ui.selection_fg.clone().into()).bg(accent).add_modifier(Modifier::BOLD)
+        } else {
+            theme.secondary_style()
+        }),
     ];
 
     let tab_layout = Layout::default()
@@ -101,9 +106,10 @@ pub fn draw_xray(f: &mut Frame, app: &mut App) {
 
     if let Some(ref data) = app.xray_data {
         match app.xray_tab {
-            0 => draw_dialogue_tab(f, content_area, data, app.xray_scroll, accent, dim, normal_fg, theme),
-            1 => draw_pacing_tab(f, content_area, data, app.xray_scroll, accent, dim, normal_fg, theme),
-            2 => draw_scenes_tab(f, content_area, data, app.xray_scroll, accent, dim, normal_fg, theme, app.config.use_nerd_fonts),
+            0 => draw_dialogue_tab(f, content_area, data, app.xray_scroll, accent, dim, normal_fg, &theme),
+            1 => draw_pacing_tab(f, content_area, data, app.xray_scroll, accent, dim, normal_fg, &theme),
+            2 => draw_scenes_tab(f, content_area, data, app.xray_scroll, accent, dim, normal_fg, &theme, app.config.use_nerd_fonts),
+            3 => draw_breakdown_tab(f, content_area, app),
             _ => {}
         }
     } else {
@@ -360,4 +366,93 @@ fn draw_scenes_tab(
     let scroll = scroll.min(max_scroll);
     let visible: Vec<Line> = lines.into_iter().skip(scroll).take(content_h).collect();
     f.render_widget(Paragraph::new(visible), area);
+}
+
+fn draw_breakdown_tab(
+    f: &mut Frame,
+    area: Rect,
+    app: &mut App,
+) {
+    let data = match &app.xray_data {
+        Some(d) => d,
+        None => return,
+    };
+    
+    let accent = Color::from(app.theme.ui.navigator_mode_bg.clone());
+    let dim = Color::from(app.theme.ui.dim.clone());
+    let theme = &app.theme;
+
+    if data.scene_breakdown.is_empty() {
+        f.render_widget(
+            Paragraph::new("  No production tags found in script.").alignment(Alignment::Center),
+            area,
+        );
+        return;
+    }
+
+    let chunks = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage(30),
+            Constraint::Percentage(70),
+        ])
+        .split(area);
+
+    // Left: Scene List
+    let mut scene_items = Vec::new();
+    for (i, s) in data.scene_breakdown.iter().enumerate() {
+        let prefix = s.scene_num.as_deref().unwrap_or("-");
+        let label = format!(" {:>3} {}", prefix, s.label);
+        let style = if i == app.xray_breakdown_idx {
+            Style::default().fg(theme.ui.selection_fg.clone().into()).bg(accent).add_modifier(Modifier::BOLD)
+        } else {
+            theme.secondary_style()
+        };
+        
+        // Add breathing space by using multiple lines for the ListItem
+        scene_items.push(ListItem::new(vec![
+            Line::from(""), // Spacer above
+            Line::from(Span::styled(label, style)),
+        ]));
+    }
+
+    let scene_list = List::new(scene_items)
+        .block(Block::default()
+            .borders(Borders::RIGHT)
+            .border_style(Style::default().fg(dim))
+            .title(Span::styled(" [ Scenes ] ", Style::default().fg(accent).add_modifier(Modifier::BOLD))));
+
+    f.render_stateful_widget(scene_list, chunks[0], &mut app.xray_breakdown_state);
+
+    // Right: Tag Breakdown
+    let mut tag_lines = Vec::new();
+    if let Some(selected_scene) = data.scene_breakdown.get(app.xray_breakdown_idx) {
+        tag_lines.push(Line::from(vec![
+            Span::styled("  Tags for: ", theme.secondary_style()),
+            Span::styled(&selected_scene.label, Style::default().fg(accent).add_modifier(Modifier::BOLD)),
+        ]));
+        tag_lines.push(Line::from(""));
+
+        if selected_scene.breakdown.is_empty() {
+            tag_lines.push(Line::from(Span::styled(
+                "    No tags in this scene.",
+                theme.secondary_style().add_modifier(Modifier::ITALIC),
+            )));
+        } else {
+            for (key, values) in &selected_scene.breakdown {
+                tag_lines.push(Line::from(vec![
+                    Span::styled(format!("    {}: ", key), Style::default().fg(accent).add_modifier(Modifier::BOLD)),
+                ]));
+                for v in values {
+                    tag_lines.push(Line::from(vec![
+                        Span::styled("      · ", theme.secondary_style()),
+                        Span::styled(v, theme.secondary_style()),
+                    ]));
+                }
+                tag_lines.push(Line::from(""));
+            }
+        }
+    }
+
+    f.render_widget(Paragraph::new(tag_lines).block(Block::default().title(Span::styled(" [ Details ] ", Style::default().fg(accent).add_modifier(Modifier::BOLD)))), chunks[1]);
 }

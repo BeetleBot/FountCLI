@@ -325,6 +325,14 @@ impl App {
                             *update_target_x = true;
                             *text_changed = true;
                             *cursor_moved = true;
+
+                            if c == '[' && self.cursor_x >= 2 {
+                                let line = &self.lines[self.cursor_y];
+                                let chars: Vec<char> = line.chars().collect();
+                                if chars[self.cursor_x - 1] == '[' && chars[self.cursor_x - 2] == '[' {
+                                    self.trigger_metadata_autocomplete();
+                                }
+                            }
                         }
                         _ => {}
                     }

@@ -23,7 +23,7 @@ use unicode_width::UnicodeWidthStr;
 
 pub fn draw(f: &mut Frame, app: &mut App) {
     let area = f.area();
-    let theme = &app.theme;
+    let theme = app.theme.clone();
     let dim_color = Color::from(theme.ui.dim.clone());
 
     let mut base_ui_style = Style::default();
@@ -502,6 +502,7 @@ pub fn draw(f: &mut Frame, app: &mut App) {
                             meta_key_end,
                             no_color: app.config.no_color,
                             no_formatting: app.config.no_formatting,
+                            is_active: row.is_active,
                         },
                         &row_highlights,
                         &sel_highlights,
@@ -988,69 +989,6 @@ pub fn draw(f: &mut Frame, app: &mut App) {
         );
     }
 
-    if app.mode == AppMode::SettingsPane {
-        let settings = vec![
-            ("Typewriter Mode", &app.config.typewriter_mode),
-            ("Auto-Save", &app.config.auto_save),
-            ("Autocomplete", &app.config.autocomplete),
-            ("Auto-Breaks", &app.config.auto_paragraph_breaks),
-            ("Focus Mode", &app.config.focus_mode),
-            ("Theme", &false), // Not a toggle
-        ];
-
-        let theme_name = &app.config.theme;
-        let items: Vec<ListItem> = settings
-            .into_iter()
-            .enumerate()
-            .map(|(i, (label, value))| {
-                let is_selected = i == app.selected_setting;
-                let style = if is_selected {
-                    Style::default()
-                        .fg(theme.ui.selection_fg.clone().into())
-                        .bg(mode_bg)
-                        .add_modifier(Modifier::BOLD)
-                } else {
-                    Style::default()
-                };
-
-                let (icon, icon_style) = if label == "Theme" {
-                    (
-                        "[T] ",
-                        Style::default().fg(Color::from(theme.ui.normal_mode_bg.clone())),
-                    )
-                } else if *value {
-                    ("[X] ", theme.success_style())
-                } else {
-                    ("[ ] ", theme.secondary_style())
-                };
-
-                let line = if label == "Theme" {
-                    Line::from(vec![
-                        Span::styled(if is_selected { " > " } else { "   " }, style),
-                        Span::styled(icon, if is_selected { style } else { icon_style }),
-                        Span::styled(format!("{}: {}", label, theme_name), style),
-                    ])
-                } else {
-                    Line::from(vec![
-                        Span::styled(if is_selected { " > " } else { "   " }, style),
-                        Span::styled(icon, if is_selected { style } else { icon_style }),
-                        Span::styled(label, style),
-                    ])
-                };
-
-                ListItem::new(line)
-            })
-            .collect();
-
-        let list = List::new(items);
-        f.render_widget(
-            list,
-            app.settings_area.inner(ratatui::layout::Margin {
-                horizontal: 0,
-                vertical: 1,
-            }),
-        );
-    }
 
     if app.mode == AppMode::ExportPane {
         draw_export_modal(f, app);
@@ -1197,7 +1135,7 @@ pub fn draw(f: &mut Frame, app: &mut App) {
         let mut rows = Vec::new();
 
         for sc in visible_shortcuts.iter() {
-            let key_color = sc.color.resolve(theme);
+            let key_color = sc.color.resolve(&theme);
             
             rows.push(Row::new(vec![
                 Cell::from(Span::styled(format!(" {:<10}", sc.key), Style::default().fg(key_color).add_modifier(Modifier::BOLD))),
@@ -1589,7 +1527,7 @@ pub fn draw(f: &mut Frame, app: &mut App) {
         let (vis_row, vis_x) = find_visual_cursor(&app.layout, app.cursor_y, app.cursor_x);
 
         match app.mode {
-            AppMode::Normal => {
+            AppMode::Normal | AppMode::MetadataAutocomplete => {
                 let cur_screen_y =
                     text_area.y + pad_top as u16 + (vis_row.saturating_sub(app.scroll)) as u16;
                 let cur_screen_x = text_area.x + global_pad + vis_x;
@@ -1635,6 +1573,54 @@ pub fn draw(f: &mut Frame, app: &mut App) {
         }
         AppMode::SettingsPane => {
             panes::settings::draw_settings_modal(f, app, area);
+        }
+        AppMode::MetadataAutocomplete => {
+            let (vis_row, vis_x) = find_visual_cursor(&app.layout, app.cursor_y, app.cursor_x);
+            let cur_screen_y = text_area.y + pad_top as u16 + (vis_row.saturating_sub(app.scroll)) as u16;
+            let cur_screen_x = text_area.x + global_pad + vis_x;
+
+            // Theme-compatible styles
+            let bg_color = app.theme.primary_bg();
+            let fg_color = app.theme.primary_fg();
+            let border_style = app.theme.secondary_style();
+            let sel_bg = Color::from(app.theme.ui.selection_bg.clone());
+            let sel_fg = Color::from(app.theme.ui.selection_fg.clone());
+
+            let items: Vec<ListItem> = app.metadata_suggestions
+                .iter()
+                .map(|s| {
+                    ListItem::new(Span::styled(format!(" {} ", s), Style::default().fg(fg_color)))
+                })
+                .collect();
+
+            let popup_width = 15;
+            let popup_height = (items.len() + 2).min(10) as u16;
+            
+            let mut popup_x = cur_screen_x;
+            if popup_x + popup_width > area.width {
+                popup_x = area.width.saturating_sub(popup_width);
+            }
+            
+            let mut popup_y = cur_screen_y + 1;
+            if popup_y + popup_height > area.height {
+                popup_y = cur_screen_y.saturating_sub(popup_height);
+            }
+
+            let popup_area = Rect::new(popup_x, popup_y, popup_width, popup_height);
+            f.render_widget(ratatui::widgets::Clear, popup_area);
+            
+            let list = List::new(items)
+                .block(Block::default()
+                    .borders(Borders::ALL)
+                    .border_type(BorderType::Rounded)
+                    .border_style(border_style)
+                    .style(Style::default().bg(bg_color)))
+                .highlight_style(Style::default()
+                    .bg(sel_bg)
+                    .fg(sel_fg)
+                    .add_modifier(Modifier::BOLD));
+            
+            f.render_stateful_widget(list, popup_area, &mut app.metadata_state);
         }
         _ => {}
     }
