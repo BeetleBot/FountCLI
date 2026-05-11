@@ -390,6 +390,9 @@ pub struct Config {
 
     /// Font for PDF export
     pub export_font: String,
+
+    /// Show line numbers in the gutter
+    pub show_line_numbers: bool,
 }
 
 impl Default for Config {
@@ -437,6 +440,7 @@ impl Default for Config {
             export_sections: false,
             export_synopses: false,
             export_font: "courier_prime".to_string(),
+            show_line_numbers: true,
         }
     }
 }
@@ -513,6 +517,7 @@ impl Config {
                         "export_sections" => self.export_sections = true,
                         "export_synopses" => self.export_synopses = true,
                         "export_font" => self.export_font = val,
+                        "line_numbers" => self.show_line_numbers = true,
                         _ => {}
                     }
                 } else if cmd == "unset" {
@@ -541,6 +546,7 @@ impl Config {
                         "include_title_page" => self.include_title_page = false,
                         "export_sections" => self.export_sections = false,
                         "export_synopses" => self.export_synopses = false,
+                        "line_numbers" => self.show_line_numbers = false,
                         _ => {}
                     }
                 }

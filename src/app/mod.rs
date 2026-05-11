@@ -1056,6 +1056,7 @@ impl App {
                         "autocomplete" => self.config.autocomplete = val,
                         "autobreaks" => self.config.auto_paragraph_breaks = val,
                         "focus" => self.config.focus_mode = val,
+                        "line" | "linenums" => self.config.show_line_numbers = val,
                         _ => self.set_error(&format!("Unknown option: {}", opt)),
                     }
                     *text_changed = true;
@@ -1080,6 +1081,9 @@ impl App {
                             self.config.auto_paragraph_breaks = !self.config.auto_paragraph_breaks
                         }
                         "focus" => self.config.focus_mode = !self.config.focus_mode,
+                        "line" | "linenums" => {
+                            self.config.show_line_numbers = !self.config.show_line_numbers
+                        }
                         _ => self.set_error(&format!("Unknown option: {}", opt)),
                     }
                     *text_changed = true;

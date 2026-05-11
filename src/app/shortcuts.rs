@@ -61,7 +61,8 @@ pub fn get_all_shortcuts() -> Vec<Shortcut> {
         sc!("Essential Controls", "^H", "Scene Navigator", "Jump to scenes", Info),
         sc!("Essential Controls", "^L", "Ensemble", "Character stats", Info),
         sc!("Essential Controls", "Tab", "Autocomplete", "Accept suggestion", Accent),
-        sc!("Essential Controls", "/theme [name]", "Switch theme", "Change UI colors", Accent),
+        sc!("Essential Controls", "/theme", "Theme Picker", "Open selection modal", Accent),
+        sc!("Essential Controls", "/theme [name]", "Switch theme", "Change UI colors", Dim),
         sc!("Essential Controls", "/editor", "Normal editor", "Return to editor", Dim),
 
         // ── Edit & History ──
@@ -142,6 +143,7 @@ pub fn get_all_shortcuts() -> Vec<Shortcut> {
         sc!("Settings", "/set autosave", "Auto-save", "30s background save", Accent),
         sc!("Settings", "/set autocomplete", "Autocomplete", "Character/scene hints", Accent),
         sc!("Settings", "/set autobreaks", "Smart breaks", "Auto-paragraph spacing", Accent),
+        sc!("Settings", "/set line", "Line numbers", "Show leftmost gutter", Accent),
 
     ]
 }

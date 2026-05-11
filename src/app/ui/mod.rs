@@ -288,13 +288,36 @@ pub fn draw(f: &mut Frame, app: &mut App) {
                 .map(|row| {
                     let mut spans = Vec::new();
                     let gap_size = 6u16;
+                    let gutter_w = 6u16;
+                    let is_current_logical = row.line_idx == app.cursor_y;
+                    let is_first_visual = row.char_start == 0;
+                    let mut current_pad = global_pad;
 
+                    // 1. Line Number Gutter
+                    let show_linenums = app.config.show_line_numbers && !app.config.focus_mode;
+                    if global_pad >= gutter_w && show_linenums {
+                        if is_first_visual {
+                            let num_str = format!("{:>4}  ", row.line_idx + 1);
+                            let num_style = if is_current_logical {
+                                Style::default().fg(mode_bg).add_modifier(Modifier::BOLD)
+                            } else {
+                                theme.secondary_style().add_modifier(Modifier::DIM)
+                            };
+                            spans.push(Span::styled(num_str, num_style));
+                        } else {
+                            spans.push(Span::raw(" ".repeat(gutter_w as usize)));
+                        }
+                        current_pad = current_pad.saturating_sub(gutter_w);
+                    }
+
+                    // 2. Scene Number or Padding
                     if let Some(ref snum) = row.scene_num {
                         let s_str = snum.to_string();
                         let s_len = UnicodeWidthStr::width(s_str.as_str()) as u16;
+                        let gap_size = 6u16;
 
-                        if global_pad >= s_len + gap_size {
-                            let pad = global_pad - s_len - gap_size;
+                        if current_pad >= s_len + gap_size {
+                            let pad = current_pad - s_len - gap_size;
                             spans.push(Span::raw(" ".repeat(pad as usize)));
                             spans.push(Span::styled(s_str, dark_gray_style));
                             spans.push(Span::raw(" ".repeat(gap_size as usize)));
@@ -303,7 +326,7 @@ pub fn draw(f: &mut Frame, app: &mut App) {
                             spans.push(Span::raw(" "));
                         }
                     } else {
-                        spans.push(Span::raw(" ".repeat(global_pad as usize)));
+                        spans.push(Span::raw(" ".repeat(current_pad as usize)));
                     }
 
                     spans.push(Span::raw(" ".repeat(row.indent as usize)));
