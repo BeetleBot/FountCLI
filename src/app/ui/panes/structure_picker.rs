@@ -57,8 +57,12 @@ pub fn draw_structure_picker(f: &mut Frame, app: &mut App) {
     let items: Vec<ListItem> = app.structures.iter().enumerate().map(|(i, s)| {
         let is_sel = i == app.structure_selected;
         if is_sel {
-            ListItem::new(format!(" ▸ {}", s.name))
-                .style(Style::default().fg(sel_fg).bg(sel_bg).add_modifier(Modifier::BOLD))
+            ListItem::new(format!(
+                " {} {}",
+                if app.config.use_nerd_fonts { "󰁔" } else { "▸" },
+                s.name
+            ))
+            .style(Style::default().fg(sel_fg).bg(sel_bg).add_modifier(Modifier::BOLD))
         } else {
             ListItem::new(format!("   {}", s.name))
                 .style(Style::default().fg(normal_fg))
@@ -87,7 +91,10 @@ pub fn draw_structure_picker(f: &mut Frame, app: &mut App) {
         lines.push(Line::from(Span::styled("Beats:", Style::default().fg(accent).add_modifier(Modifier::UNDERLINED))));
         for beat in &s.beats {
             lines.push(Line::from(vec![
-                Span::styled(" • ", Style::default().fg(accent)),
+                Span::styled(
+                    if app.config.use_nerd_fonts { " 󰄱 " } else { " • " },
+                    Style::default().fg(accent)
+                ),
                 Span::styled(beat.label.clone(), Style::default().fg(normal_fg).add_modifier(Modifier::BOLD)),
             ]));
         }

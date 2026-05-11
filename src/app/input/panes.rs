@@ -131,7 +131,7 @@ impl App {
                     return Ok(false);
                 }
                 AppMode::SettingsPane => {
-                    let settings_count = 11;
+                    let settings_count = 12;
                     match key.code {
                         KeyCode::Esc => {
                             self.mode = AppMode::Normal;
@@ -206,6 +206,10 @@ impl App {
                                 10 => {
                                     self.config.auto_paragraph_breaks = !self.config.auto_paragraph_breaks;
                                     let _ = crate::config::Config::save_setting("auto_paragraph_breaks", self.config.auto_paragraph_breaks);
+                                }
+                                11 => {
+                                    self.config.use_nerd_fonts = !self.config.use_nerd_fonts;
+                                    let _ = crate::config::Config::save_setting("use_nerd_fonts", self.config.use_nerd_fonts);
                                 }
                                 _ => {}
                             }

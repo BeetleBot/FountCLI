@@ -55,7 +55,18 @@ pub fn draw_settings_modal(f: &mut Frame, app: &mut App, area: Rect) {
         };
 
         ListItem::new(Line::from(vec![
-            Span::styled(if is_selected { " > " } else { "   " }, style),
+            Span::styled(
+                if is_selected {
+                    if app.config.use_nerd_fonts {
+                        " 󰁔 "
+                    } else {
+                        " > "
+                    }
+                } else {
+                    "   "
+                },
+                style,
+            ),
             Span::styled(format!("{:<20}", label), style),
             Span::styled(value.to_string(), val_style),
         ]))
@@ -169,6 +180,15 @@ pub fn draw_settings_modal(f: &mut Frame, app: &mut App, area: Rect) {
             "[OFF]"
         },
         app.selected_setting == 10,
+    ));
+    options.push(render_option(
+        "Nerd Icons",
+        if app.config.use_nerd_fonts {
+            "[ON]"
+        } else {
+            "[OFF]"
+        },
+        app.selected_setting == 11,
     ));
 
     f.render_widget(List::new(options), layout[0]);

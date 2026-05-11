@@ -503,7 +503,15 @@ pub fn draw(f: &mut Frame, app: &mut App) {
                             .add_modifier(Modifier::BOLD)
                     };
 
-                    let prefix = if is_selected { " ▸ " } else { "   " };
+                    let prefix = if is_selected {
+                        if app.config.use_nerd_fonts {
+                            " 󰁔 "
+                        } else {
+                            " ▸ "
+                        }
+                    } else {
+                        "   "
+                    };
                     let max_section_w = 32;
                     let mut current_line = String::new();
                     let mut first_line = true;
@@ -513,7 +521,14 @@ pub fn draw(f: &mut Frame, app: &mut App) {
                             if first_line {
                                 lines.push(Line::from(vec![
                                     Span::styled(prefix, style),
-                                    Span::styled("◆ ", style),
+                                    Span::styled(
+                                        if app.config.use_nerd_fonts {
+                                            "󰉋 "
+                                        } else {
+                                            "◆ "
+                                        },
+                                        style,
+                                    ),
                                     Span::styled(current_line.clone(), style),
                                 ]));
                                 first_line = false;
@@ -536,7 +551,14 @@ pub fn draw(f: &mut Frame, app: &mut App) {
                         if first_line {
                             lines.push(Line::from(vec![
                                 Span::styled(prefix, style),
-                                Span::styled("◆ ", style),
+                                Span::styled(
+                                    if app.config.use_nerd_fonts {
+                                        "󰉋 "
+                                    } else {
+                                        "◆ "
+                                    },
+                                    style,
+                                ),
                                 Span::styled(current_line, style),
                             ]));
                         } else {
@@ -791,7 +813,15 @@ pub fn draw(f: &mut Frame, app: &mut App) {
                     Style::default().fg(dim_color).add_modifier(Modifier::DIM)
                 };
 
-                let prefix = if is_selected { " > " } else { "   " };
+                let prefix = if is_selected {
+                    if app.config.use_nerd_fonts {
+                        " 󰁔 "
+                    } else {
+                        " > "
+                    }
+                } else {
+                    "   "
+                };
 
                 match item {
                     EnsembleItem::CharacterHeader(char_idx) => {

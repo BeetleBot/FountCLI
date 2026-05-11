@@ -185,7 +185,11 @@ pub fn draw_home(f: &mut Frame, app: &mut App) {
         let is_sel = i == app.home_selected;
         if is_sel {
             lines.push(Line::from(Span::styled(
-                format!("  ▸ {}  ", label),
+                format!(
+                    "  {} {}  ",
+                    if app.config.use_nerd_fonts { "󰁔" } else { "▸" },
+                    label
+                ),
                 Style::default().fg(sel_fg).bg(sel_bg).add_modifier(Modifier::BOLD),
             )));
         } else {
@@ -219,7 +223,11 @@ pub fn draw_home(f: &mut Frame, app: &mut App) {
 
             if is_sel {
                 lines.push(Line::from(Span::styled(
-                    format!("  ▸ {}  ", name),
+                    format!(
+                        "  {} {}  ",
+                        if app.config.use_nerd_fonts { "󰁔" } else { "▸" },
+                        name
+                    ),
                     Style::default().fg(sel_fg).bg(sel_bg).add_modifier(Modifier::BOLD),
                 )));
             } else {

@@ -205,9 +205,23 @@ pub fn draw_file_picker(f: &mut Frame, app: &mut App, area: Rect) {
             };
 
             let (icon, color) = if is_dir {
-                ("[D] ", app.theme.ui.navigator_mode_bg.clone().into())
+                (
+                    if app.config.use_nerd_fonts {
+                        "󰉋  "
+                    } else {
+                        "[D] "
+                    },
+                    app.theme.ui.navigator_mode_bg.clone().into(),
+                )
             } else {
-                ("    ", app.theme.primary_fg())
+                (
+                    if app.config.use_nerd_fonts {
+                        "󰈙  "
+                    } else {
+                        "    "
+                    },
+                    app.theme.primary_fg(),
+                )
             };
 
             let style = if is_selected {
@@ -217,7 +231,18 @@ pub fn draw_file_picker(f: &mut Frame, app: &mut App, area: Rect) {
             };
 
             ListItem::new(Line::from(vec![
-                Span::styled(if is_selected { " > " } else { "   " }, style),
+                Span::styled(
+                    if is_selected {
+                        if app.config.use_nerd_fonts {
+                            " 󰁔 "
+                        } else {
+                            " > "
+                        }
+                    } else {
+                        "   "
+                    },
+                    style,
+                ),
                 Span::styled(icon, style),
                 Span::styled(name, style),
             ]))
@@ -467,7 +492,18 @@ pub fn draw_export_modal(f: &mut Frame, app: &App) {
         };
 
         ListItem::new(Line::from(vec![
-            Span::styled(if is_selected { " > " } else { "   " }, style),
+            Span::styled(
+                if is_selected {
+                    if app.config.use_nerd_fonts {
+                        " 󰁔 "
+                    } else {
+                        " > "
+                    }
+                } else {
+                    "   "
+                },
+                style,
+            ),
             Span::styled(format!("{:<18}", label), style),
             Span::styled(value.to_string(), val_style),
         ]))
