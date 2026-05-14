@@ -1,6 +1,7 @@
 [package]
 name = "fount"
 version = "0.9.5"
+build = "packaging/build.rs"
 authors = [
     "BeetleBot"
 ]
