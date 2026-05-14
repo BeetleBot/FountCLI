@@ -116,23 +116,28 @@ pub fn draw_settings_modal(f: &mut Frame, app: &mut App, area: Rect) {
         &get_val(app.config.use_nerd_fonts),
         app.selected_setting == 4,
     ));
+    options.push(render_option(
+        &format!("{}Progress Bar", get_icon("󱇯", "")),
+        &get_val(app.config.show_progress_bar),
+        app.selected_setting == 5,
+    ));
 
     // Category: Fountain
     options.push(render_header("FOUNTAIN"));
     options.push(render_option(
         &format!("{}Show Markup", get_icon("󰈝", "")),
         &get_val(!app.config.hide_markup),
-        app.selected_setting == 6,
+        app.selected_setting == 7,
     ));
     options.push(render_option(
         &format!("{}Prod. Tags", get_icon("󰓹", "")),
         &get_val(app.config.show_production_tags),
-        app.selected_setting == 7,
+        app.selected_setting == 8,
     ));
     options.push(render_option(
         &format!("{}Highlight Active", get_icon("󰉈", "")),
         &get_val(app.config.highlight_active_action),
-        app.selected_setting == 8,
+        app.selected_setting == 9,
     ));
 
     // Category: Structure
@@ -140,12 +145,12 @@ pub fn draw_settings_modal(f: &mut Frame, app: &mut App, area: Rect) {
     options.push(render_option(
         &format!("{}Scene Numbers", get_icon("󰎩", "")),
         &get_val(app.config.show_scene_numbers),
-        app.selected_setting == 10,
+        app.selected_setting == 11,
     ));
     options.push(render_option(
         &format!("{}Page Numbers", get_icon("󰈙", "")),
         &get_val(app.config.show_page_numbers),
-        app.selected_setting == 11,
+        app.selected_setting == 12,
     ));
 
     // Category: Writing
@@ -153,17 +158,17 @@ pub fn draw_settings_modal(f: &mut Frame, app: &mut App, area: Rect) {
     options.push(render_option(
         &format!("{}Autocomplete", get_icon("󰧑", "")),
         &get_val(app.config.autocomplete),
-        app.selected_setting == 13,
+        app.selected_setting == 14,
     ));
     options.push(render_option(
         &format!("{}Auto (CONT'D)", get_icon("󰑔", "")),
         &get_val(app.config.auto_contd),
-        app.selected_setting == 14,
+        app.selected_setting == 15,
     ));
     options.push(render_option(
         &format!("{}Smart Breaks", get_icon("󰉓", "")),
         &get_val(app.config.auto_paragraph_breaks),
-        app.selected_setting == 15,
+        app.selected_setting == 16,
     ));
 
     // Category: System
@@ -182,13 +187,14 @@ pub fn draw_settings_modal(f: &mut Frame, app: &mut App, area: Rect) {
     options.push(render_option(
         &format!("{}Auto-Save", get_icon("󰆓", "")),
         &auto_save_val,
-        app.selected_setting == 17,
+        app.selected_setting == 18,
     ));
     options.push(render_option(
         &format!("{}Active Theme", get_icon("󰏘", "")),
         &app.config.theme,
-        app.selected_setting == 18,
+        app.selected_setting == 19,
     ));
+
 
     f.render_widget(List::new(options), layout[0]);
 

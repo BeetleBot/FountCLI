@@ -204,7 +204,7 @@ impl App {
                     return Ok(false);
                 }
                 AppMode::SettingsPane => {
-                    let settings_count = 19;
+                    let settings_count = 20;
                     match key.code {
                         KeyCode::Esc => {
                             self.mode = AppMode::Normal;
@@ -215,16 +215,16 @@ impl App {
                             } else {
                                 self.selected_setting - 1
                             };
-                            // Skip headers: 0, 5, 9, 12, 16
-                            while [0, 5, 9, 12, 16].contains(&next) {
+                            // Skip headers: 0, 6, 10, 13, 17
+                            while [0, 6, 10, 13, 17].contains(&next) {
                                 next = if next == 0 { settings_count - 1 } else { next - 1 };
                             }
                             self.selected_setting = next;
                         }
                         KeyCode::Down => {
                             let mut next = (self.selected_setting + 1) % settings_count;
-                            // Skip headers: 0, 5, 9, 12, 16
-                            while [0, 5, 9, 12, 16].contains(&next) {
+                            // Skip headers: 0, 6, 10, 13, 17
+                            while [0, 6, 10, 13, 17].contains(&next) {
                                 next = (next + 1) % settings_count;
                             }
                             self.selected_setting = next;
@@ -247,39 +247,43 @@ impl App {
                                     self.config.use_nerd_fonts = !self.config.use_nerd_fonts;
                                     let _ = crate::config::Config::save_setting("use_nerd_fonts", self.config.use_nerd_fonts);
                                 }
-                                6 => {
+                                5 => {
+                                    self.config.show_progress_bar = !self.config.show_progress_bar;
+                                    let _ = crate::config::Config::save_setting("progressbar", self.config.show_progress_bar);
+                                }
+                                7 => {
                                     self.config.hide_markup = !self.config.hide_markup;
                                     let _ = crate::config::Config::save_setting("hide_markup", self.config.hide_markup);
                                 }
-                                7 => {
+                                8 => {
                                     self.config.show_production_tags = !self.config.show_production_tags;
                                     let _ = crate::config::Config::save_setting("prodtags", self.config.show_production_tags);
                                 }
-                                8 => {
+                                9 => {
                                     self.config.highlight_active_action = !self.config.highlight_active_action;
                                     let _ = crate::config::Config::save_setting("highlight_active_action", self.config.highlight_active_action);
                                 }
-                                10 => {
+                                11 => {
                                     self.config.show_scene_numbers = !self.config.show_scene_numbers;
                                     let _ = crate::config::Config::save_setting("show_scene_numbers", self.config.show_scene_numbers);
                                 }
-                                11 => {
+                                12 => {
                                     self.config.show_page_numbers = !self.config.show_page_numbers;
                                     let _ = crate::config::Config::save_setting("show_page_numbers", self.config.show_page_numbers);
                                 }
-                                13 => {
+                                14 => {
                                     self.config.autocomplete = !self.config.autocomplete;
                                     let _ = crate::config::Config::save_setting("autocomplete", self.config.autocomplete);
                                 }
-                                14 => {
+                                15 => {
                                     self.config.auto_contd = !self.config.auto_contd;
                                     let _ = crate::config::Config::save_setting("auto_contd", self.config.auto_contd);
                                 }
-                                15 => {
+                                16 => {
                                     self.config.auto_paragraph_breaks = !self.config.auto_paragraph_breaks;
                                     let _ = crate::config::Config::save_setting("auto_paragraph_breaks", self.config.auto_paragraph_breaks);
                                 }
-                                17 => {
+                                18 => {
                                     if !self.config.auto_save {
                                         self.config.auto_save = true;
                                         self.config.auto_save_interval = 60;
@@ -298,7 +302,7 @@ impl App {
                                     let _ = crate::config::Config::save_setting("auto_save", self.config.auto_save);
                                     let _ = crate::config::Config::save_string_setting("auto_save_interval", &self.config.auto_save_interval.to_string());
                                 }
-                                18 => {
+                                19 => {
                                     self.mode = AppMode::ThemePicker;
                                 }
                                 _ => {}

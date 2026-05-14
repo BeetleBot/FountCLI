@@ -64,6 +64,7 @@ pub fn get_all_shortcuts() -> Vec<Shortcut> {
         sc!("Essential Controls", "/theme", "Theme Picker", "Open selection modal", Accent),
         sc!("Essential Controls", "/theme [name]", "Switch theme", "Change UI colors", Dim),
         sc!("Essential Controls", "/editor", "Normal editor", "Return to editor", Dim),
+        sc!("Essential Controls", "/progressbar", "Progress bar", "Toggle visual progress", Accent),
 
         // ── Edit & History ──
         sc!("Edit & History", "/ud", "Undo", "Undo last change", Warning),
@@ -145,6 +146,7 @@ pub fn get_all_shortcuts() -> Vec<Shortcut> {
         sc!("Settings", "/set autocomplete", "Autocomplete", "Character/scene hints", Accent),
         sc!("Settings", "/set autobreaks", "Smart breaks", "Auto-paragraph spacing", Accent),
         sc!("Settings", "/set line", "Line numbers", "Show leftmost gutter", Accent),
+        sc!("Settings", "/set progressbar", "Progress bar", "Show footer progress", Accent),
 
     ]
 }

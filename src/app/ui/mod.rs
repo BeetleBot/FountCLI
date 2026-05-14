@@ -1222,17 +1222,18 @@ pub fn draw(f: &mut Frame, app: &mut App) {
 
         let mut spans = Vec::new();
 
+        // --- Left Section (Mode, File, Scene) ---
         // Opening bracket
         spans.push(Span::styled("[ ", sep_style));
 
-        // Mode label (title-case, calmer than SCREAMING)
+        // Mode label
         spans.push(Span::styled(
             mode_str.trim(),
             Style::default().fg(mode_bg).add_modifier(Modifier::BOLD),
         ));
         spans.push(Span::styled(sep, sep_style));
 
-        // Filename + dirty/lock indicators
+        // Filename + indicators
         let fname = app
             .file
             .as_ref()
@@ -1250,109 +1251,10 @@ pub fn draw(f: &mut Frame, app: &mut App) {
             Style::default().fg(mode_bg),
         ));
 
-        // Saved indicator
-        if let Some(time) = app.save_indicator_timer {
-            let elapsed = time.elapsed().as_secs_f32();
-            if elapsed < 2.0 {
-                spans.push(Span::styled(
-                    if app.config.use_nerd_fonts { "   Saved" } else { "  [X] Saved" },
-                    theme.success_style().add_modifier(Modifier::BOLD),
-                ));
-            }
-        }
-
-        spans.push(Span::styled(sep, sep_style));
-
-        // Center content: command, search, status, or hint
-        if app.mode == AppMode::Command {
-            let cmd_style = if app.command_error {
-                theme.error_style().add_modifier(Modifier::BOLD)
-            } else {
-                Style::default().add_modifier(Modifier::BOLD)
-            };
-            spans.push(Span::styled("/", cmd_style));
-            spans.push(Span::styled(&app.command_input, cmd_style));
-
-            if !app.command_input.is_empty() && !app.command_error {
-                let commands = app.get_command_completions();
-                let input_lower = app.command_input.to_lowercase();
-                if let Some(first_match) = commands.iter().find(|&c| {
-                    c.to_lowercase().starts_with(&input_lower) && c.to_lowercase() != input_lower
-                }) {
-                    let remainder = &first_match[app.command_input.len()..];
-                    spans.push(Span::styled(
-                        remainder.to_string(),
-                        Style::default().fg(dim_color),
-                    ));
-                }
-            }
-
-            if app.command_input.is_empty() && !app.command_error {
-                spans.push(Span::styled(
-                    " type a command...",
-                    Style::default().fg(dim_color),
-                ));
-            }
-        } else if matches!(
-            app.mode,
-            AppMode::Search
-                | AppMode::PromptSave
-                | AppMode::PromptFilename
-                | AppMode::ReplaceOne
-                | AppMode::ReplaceAll
-        ) {
-            match app.mode {
-                AppMode::Search => {
-                    let prompt_base = if app.last_search.is_empty() {
-                        "Search: ".to_string()
-                    } else {
-                        format!("Search [{}]: ", app.last_search)
-                    };
-
-                    let mut count_msg = String::new();
-                    if !app.search_matches.is_empty() {
-                        let cur = app.current_match_idx.map(|idx| idx + 1).unwrap_or(0);
-                        count_msg = format!(" [{}/{}]", cur, app.search_matches.len());
-                    }
-
-                    spans.push(Span::raw(format!("{}{}", prompt_base, app.search_query)));
-                    if !count_msg.is_empty() {
-                        spans.push(Span::styled(count_msg, theme.secondary_style()));
-                    }
-                    spans.push(Span::styled(
-                        " [Alt+^/v] Navigate",
-                        theme.secondary_style(),
-                    ));
-                }
-                AppMode::ReplaceOne => {
-                    spans.push(Span::raw(format!("Replace: {} ", app.command_input)))
-                }
-                AppMode::ReplaceAll => {
-                    spans.push(Span::raw(format!("Replace All: {} ", app.command_input)))
-                }
-                AppMode::PromptSave => spans.push(Span::raw("Save modified script? (y/n/c) ")),
-                AppMode::PromptFilename => {
-                    spans.push(Span::raw(format!("Filename: {} ", app.filename_input)))
-                }
-                _ => {}
-            }
-        } else if app.status_msg.is_some() || app.show_search_highlight {
-            if let Some(msg) = &app.status_msg {
-                let style = if app.command_error {
-                    theme.error_style()
-                } else {
-                    theme.secondary_style().add_modifier(Modifier::ITALIC)
-                };
-                spans.push(Span::styled(msg, style));
-            }
-
-            if app.show_search_highlight && !app.search_matches.is_empty() {
-                spans.push(Span::styled(
-                    " [Alt+^/v] Nav [r] Replace [R] Replace All",
-                    theme.secondary_style(),
-                ));
-            }
-        } else if app.mode != AppMode::Home && app.mode != AppMode::IndexCards {
+        // Scene name (only if not in special modes that replace the center)
+        let is_writing_mode = app.mode == AppMode::Normal || app.mode == AppMode::MetadataAutocomplete;
+        if is_writing_mode && app.mode != AppMode::Home && app.mode != AppMode::IndexCards {
+            spans.push(Span::styled(sep, sep_style));
             let scene_name = app.get_current_scene_name();
             spans.push(Span::styled(
                 scene_name,
@@ -1360,42 +1262,8 @@ pub fn draw(f: &mut Frame, app: &mut App) {
             ));
         }
 
-        // Sprint progress (if active)
-        if let Some(GoalType::Sprint {
-            start_time,
-            duration,
-            start_words,
-            ..
-        }) = &app.active_goal
-        {
-            let elapsed = start_time.elapsed();
-            let pct = (elapsed.as_secs_f64() / duration.as_secs_f64()).min(1.0);
-            let bar_width = 8;
-            let filled = (pct * bar_width as f64) as usize;
-            let empty = bar_width - filled;
-
-            let remaining = duration.saturating_sub(elapsed);
-            let rem_min = remaining.as_secs() / 60;
-            let rem_sec = remaining.as_secs() % 60;
-
-            let current_words = app.total_word_count();
-            let words_written = current_words.saturating_sub(*start_words);
-
-            let sprint_msg = format!(
-                " | {} [{}{}] {:02}:{:02} +{}w",
-                if app.config.use_nerd_fonts { "󱎫" } else { "Sprint" },
-                "█".repeat(filled),
-                "░".repeat(empty),
-                rem_min,
-                rem_sec,
-                words_written
-            );
-            spans.push(Span::styled(sprint_msg, Style::default().fg(mode_bg)));
-        }
-
-        // Right-side info: word count, line count, cursor position
+        // --- Right Section (Word count, Pos, F1) ---
         let mut right_spans = Vec::new();
-
         let current_context_mode = if app.mode == AppMode::Command || app.mode == AppMode::Search {
             app.previous_mode
         } else {
@@ -1405,56 +1273,117 @@ pub fn draw(f: &mut Frame, app: &mut App) {
         if current_context_mode == AppMode::IndexCards {
             let sections = app.index_cards.iter().filter(|c| c.is_section).count();
             let scenes = app.index_cards.len() - sections;
-
+            right_spans.push(Span::styled(sep, sep_style));
+            right_spans.push(Span::styled("[?] Help", dim_style));
             right_spans.push(Span::styled(sep, sep_style));
             right_spans.push(Span::styled(
-                "[?] Quick Help",
-                dim_style,
-            ));
-            right_spans.push(Span::styled(sep, sep_style));
-            right_spans.push(Span::styled(
-                format!("{} Sections, {} Scenes", sections, scenes),
+                format!("{} Sec, {} Sc", sections, scenes),
                 dim_style,
             ));
         } else {
             let word_count = app.total_word_count();
             let pos_str = format!("Ln {}, Col {}", app.cursor_y + 1, app.cursor_x + 1);
-
             right_spans.push(Span::styled(sep, sep_style));
-            right_spans.push(Span::styled(
-                format!("{} words", word_count),
-                dim_style,
-            ));
+            right_spans.push(Span::styled(format!("{} words", word_count), dim_style));
             right_spans.push(Span::styled(sep, sep_style));
             right_spans.push(Span::styled(pos_str, dim_style));
         }
-        // F1 Cheat Sheet
         right_spans.push(Span::styled(sep, sep_style));
         right_spans.push(Span::styled(
-            if app.config.use_nerd_fonts { "󰌌 F1 - Cheat Sheet" } else { "F1 - Cheat Sheet" },
+            if app.config.use_nerd_fonts { "󰌌 F1" } else { "F1" },
             dim_style,
         ));
+        // Closing bracket on the far right will be added later
 
-        // Closing bracket
-        right_spans.push(Span::styled(" ]", sep_style));
-
-        let left_width: usize = spans
-            .iter()
-            .map(|s| UnicodeWidthStr::width(s.content.as_ref()))
-            .sum();
-        let right_width: usize = right_spans
-            .iter()
-            .map(|s| UnicodeWidthStr::width(s.content.as_ref()))
-            .sum();
+        // --- Middle Section (Progress, Status, or Commands) ---
+        let left_width: usize = spans.iter().map(|s| UnicodeWidthStr::width(s.content.as_ref())).sum::<usize>();
+        let right_width: usize = right_spans.iter().map(|s| UnicodeWidthStr::width(s.content.as_ref())).sum::<usize>() + 2; // +2 for " ]"
         let total_width = footer_area.width as usize;
+        let mid_width = total_width.saturating_sub(left_width).saturating_sub(right_width);
 
-        if total_width > left_width + right_width {
-            let pad_len = total_width - left_width - right_width;
-            spans.push(Span::raw(" ".repeat(pad_len)));
+        if app.mode == AppMode::Command {
+            let cmd_style = if app.command_error { theme.error_style().add_modifier(Modifier::BOLD) } else { Style::default().add_modifier(Modifier::BOLD) };
+            spans.push(Span::styled(" | /", sep_style));
+            spans.push(Span::styled(&app.command_input, cmd_style));
+            if !app.command_input.is_empty() && !app.command_error {
+                let commands = app.get_command_completions();
+                let input_lower = app.command_input.to_lowercase();
+                if let Some(first_match) = commands.iter().find(|&c| c.to_lowercase().starts_with(&input_lower) && c.to_lowercase() != input_lower) {
+                    let remainder = &first_match[app.command_input.len()..];
+                    spans.push(Span::styled(remainder.to_string(), Style::default().fg(dim_color)));
+                }
+            }
+            // Fill remaining space
+            let cur_len: usize = spans.iter().map(|s| UnicodeWidthStr::width(s.content.as_ref())).sum();
+            let pad = total_width.saturating_sub(cur_len).saturating_sub(right_width);
+            spans.push(Span::raw(" ".repeat(pad)));
+        } else if matches!(app.mode, AppMode::Search | AppMode::PromptSave | AppMode::PromptFilename | AppMode::ReplaceOne | AppMode::ReplaceAll) {
+            spans.push(Span::styled(" | ", sep_style));
+            match app.mode {
+                AppMode::Search => {
+                    let prompt = if app.last_search.is_empty() { "Search: ".to_string() } else { format!("Search [{}]: ", app.last_search) };
+                    spans.push(Span::raw(format!("{}{}", prompt, app.search_query)));
+                    if !app.search_matches.is_empty() {
+                        let cur = app.current_match_idx.map(|idx| idx + 1).unwrap_or(0);
+                        spans.push(Span::styled(format!(" [{}/{}]", cur, app.search_matches.len()), theme.secondary_style()));
+                    }
+                }
+                AppMode::ReplaceOne => spans.push(Span::raw(format!("Replace: {} ", app.command_input))),
+                AppMode::ReplaceAll => spans.push(Span::raw(format!("Replace All: {} ", app.command_input))),
+                AppMode::PromptSave => spans.push(Span::raw("Save modified script? (y/n/c) ")),
+                AppMode::PromptFilename => spans.push(Span::raw(format!("Filename: {} ", app.filename_input))),
+                _ => {}
+            }
+            let cur_len: usize = spans.iter().map(|s| UnicodeWidthStr::width(s.content.as_ref())).sum();
+            let pad = total_width.saturating_sub(cur_len).saturating_sub(right_width);
+            spans.push(Span::raw(" ".repeat(pad)));
+        } else {
+            // Priority: Status Message > Save Indicator > Progress Bar
+            let mut mid_spans = Vec::new();
+            
+            if let Some(msg) = &app.status_msg {
+                let style = if app.command_error { theme.error_style() } else { theme.secondary_style().add_modifier(Modifier::ITALIC) };
+                mid_spans.push(Span::styled(format!("  {}  ", msg), style));
+            } else if app.save_indicator_timer.is_some_and(|t| t.elapsed().as_secs_f32() < 2.0) {
+                let saved_msg = if app.config.use_nerd_fonts { "   Saved  " } else { "  [X] Saved  " };
+                mid_spans.push(Span::styled(saved_msg, theme.success_style().add_modifier(Modifier::BOLD)));
+            } else if is_writing_mode && app.config.show_progress_bar && mid_width > 12 {
+                // Progress Bar
+                let total_lines = app.lines.len();
+                let current_line = app.cursor_y + 1;
+                let pct = if total_lines > 0 { (current_line as f32 / total_lines as f32).clamp(0.0, 1.0) } else { 0.0 };
+                
+                let bar_width = mid_width.saturating_sub(4);
+                let filled = (pct * bar_width as f32) as usize;
+                let empty = bar_width.saturating_sub(filled);
+                
+                mid_spans.push(Span::raw("  "));
+                mid_spans.push(Span::styled("█".repeat(filled), Style::default().fg(mode_bg)));
+                mid_spans.push(Span::styled("░".repeat(empty), Style::default().fg(dim_color)));
+                mid_spans.push(Span::raw("  "));
+            }
+
+            let mid_content_width: usize = mid_spans.iter().map(|s| UnicodeWidthStr::width(s.content.as_ref())).sum::<usize>();
+            let total_pad = mid_width.saturating_sub(mid_content_width);
+            let left_pad = total_pad / 2;
+            let right_pad = total_pad - left_pad;
+
+            spans.push(Span::raw(" ".repeat(left_pad)));
+            spans.extend(mid_spans);
+            spans.push(Span::raw(" ".repeat(right_pad)));
         }
 
         spans.extend(right_spans);
+        spans.push(Span::styled(" ]", sep_style)); // Final closing bracket
+
+        // Sprint progress (if active, overlay or append?)
+        // To keep it simple and clean as requested, we'll only show sprint if not in command/search
+        if app.mode == AppMode::Normal && let Some(GoalType::Sprint { .. }) = &app.active_goal {
+            // Sprint data is collected but currently omitted from the large progress bar view
+        }
+
         f.render_widget(Paragraph::new(Line::from(spans)), footer_area);
+
 
         // Cursor Handling for Footer Modes
         if matches!(

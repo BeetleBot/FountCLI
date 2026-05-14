@@ -115,6 +115,9 @@ unset force_scene_numbers
 
 # Render scene headings in bold for exports (PDF/HTML).
 set export_bold_scene_headings
+
+# Show a large progress bar in the footer while writing.
+set show_progress_bar
 "#;
 
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
@@ -266,6 +269,9 @@ pub struct Config {
 
     /// Show production tags in the editor
     pub show_production_tags: bool,
+
+    /// Show progress bar in the footer
+    pub show_progress_bar: bool,
 }
 
 impl Default for Config {
@@ -315,6 +321,7 @@ impl Default for Config {
             export_font: "courier_prime".to_string(),
             show_line_numbers: true,
             show_production_tags: false,
+            show_progress_bar: true,
         }
     }
 }
@@ -393,6 +400,7 @@ impl Config {
                         "export_font" => self.export_font = val,
                         "line_numbers" => self.show_line_numbers = true,
                         "prodtags" => self.show_production_tags = true,
+                        "progressbar" => self.show_progress_bar = true,
                         _ => {}
                     }
                 } else if cmd == "unset" {
@@ -423,6 +431,7 @@ impl Config {
                         "export_synopses" => self.export_synopses = false,
                         "line_numbers" => self.show_line_numbers = false,
                         "prodtags" => self.show_production_tags = false,
+                        "progressbar" => self.show_progress_bar = false,
                         _ => {}
                     }
                 }
