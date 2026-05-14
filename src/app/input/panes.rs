@@ -1061,6 +1061,9 @@ impl App {
                                 self.delete_card(self.selected_card_idx);
                                 *text_changed = true;
                             }
+                            KeyCode::Char('?') => {
+                                self.show_quick_help = !self.show_quick_help;
+                            }
                             _ => {}
                         }
                     }

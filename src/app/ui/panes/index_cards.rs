@@ -190,4 +190,15 @@ pub fn draw_index_cards(f: &mut Frame, app: &mut App, area: Rect) {
             f.render_widget(Paragraph::new(card_lines).wrap(Wrap { trim: true }), inner);
         }
     }
+
+    // Help Hint
+    let help_hint = Span::styled(" [?] Help ", Style::default().fg(accent).add_modifier(Modifier::BOLD));
+    let hint_w = 10;
+    let hint_area = Rect::new(
+        area.x + area.width.saturating_sub(hint_w + 2),
+        area.y + area.height.saturating_sub(1),
+        hint_w,
+        1
+    );
+    f.render_widget(Paragraph::new(Line::from(help_hint)), hint_area);
 }

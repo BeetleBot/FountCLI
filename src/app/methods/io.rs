@@ -48,10 +48,12 @@ impl App {
 
     pub fn set_status(&mut self, msg: &str) {
         self.status_msg = Some(msg.to_string());
+        self.status_timer = Some(std::time::Instant::now());
     }
 
     pub fn clear_status(&mut self) {
         self.status_msg = None;
+        self.status_timer = None;
     }
 
     pub fn load_recent_files(&mut self) {

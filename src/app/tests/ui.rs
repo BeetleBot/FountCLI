@@ -125,13 +125,15 @@ use super::*;
         terminal.draw(|f| crate::app::ui::draw(f, &mut app)).unwrap();
 
         let buffer = terminal.backend().buffer();
-        let status_cell = &buffer[(2, 23)];
+        // Centered status message in 3-line footer (y=22)
+        // "  Test status  " is 15 chars. (80-15)/2 = 32.
+        let status_cell = &buffer[(34, 22)]; 
         assert_eq!(
             status_cell.fg,
             Color::Blue,
             "Panel should use mode background color for label"
         );
-        assert!(status_cell.modifier.contains(Modifier::BOLD));
+        assert!(status_cell.modifier.contains(Modifier::ITALIC));
     }
 
     #[test]

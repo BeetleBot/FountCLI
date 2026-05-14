@@ -6,7 +6,7 @@ use self::panes::{
 };
 
 use crate::{
-    app::{App, AppMode, EnsembleItem, GoalType, shortcuts},
+    app::{App, AppMode, EnsembleItem, shortcuts},
     formatting::{RenderConfig, StringCaseExt, render_inline},
     layout::{find_visual_cursor, strip_sigils},
     types::{LineType, PAGE_WIDTH, base_style},
@@ -163,11 +163,11 @@ pub fn draw(f: &mut Frame, app: &mut App) {
     let has_status = app.status_msg.is_some();
 
     let show_bottom = !app.config.focus_mode || is_prompt || has_status;
-
-    let _in_command_mode = app.mode == AppMode::Command;
-    let footer_height = if show_bottom { 1 } else { 0 };
     let show_header = !app.config.focus_mode || is_prompt || has_status;
-    let header_height: u16 = if show_header { 1 } else { 0 };
+
+    let header_height: u16 = if show_header { 3 } else { 0 };
+    let footer_height: u16 = if show_bottom { 3 } else { 0 };
+
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
@@ -177,25 +177,20 @@ pub fn draw(f: &mut Frame, app: &mut App) {
         ])
         .split(area);
 
-    let (header_area, mut text_area, footer_area) = (chunks[0], chunks[1], chunks[2]);
+    let (header_area, main_area, footer_area) = (chunks[0], chunks[1], chunks[2]);
 
-    // ── Header rendering (Zen Style) ──────────────────────────────────────
-    {
+    // ── Header rendering (Dashboard Style) ──────────────────────────────────
+    if show_header {
         let dim_style = theme.secondary_style();
-        let sep = " | ";
-        let sep_style = dim_style;
 
         let mut left_spans = Vec::new();
 
-        // Opening bracket
-        left_spans.push(Span::styled("[ ", sep_style));
-
-        // Buffer tabs (Always shown on the left)
+        // Buffer tabs
         for i in 0..app.buffers.len() {
-            let (file, dirty) = if i == app.current_buf_idx {
-                (&app.file, app.dirty)
+            let file = if i == app.current_buf_idx {
+                &app.file
             } else {
-                (&app.buffers[i].file, app.buffers[i].dirty)
+                &app.buffers[i].file
             };
 
             let name = file
@@ -204,8 +199,7 @@ pub fn draw(f: &mut Frame, app: &mut App) {
                 .map(|n| n.to_string_lossy().into_owned())
                 .unwrap_or_else(|| "New Script".to_string());
 
-            let dirty_mark = if dirty { "*" } else { "" };
-            let label = format!("{}{}", name, dirty_mark);
+            let label = format!("  {}  ", name); 
 
             if i == app.current_buf_idx {
                 left_spans.push(Span::styled(
@@ -218,82 +212,77 @@ pub fn draw(f: &mut Frame, app: &mut App) {
             } else {
                 left_spans.push(Span::styled(label, dim_style));
             }
-
-            if i + 1 < app.buffers.len() {
-                left_spans.push(Span::styled(sep, sep_style));
-            }
         }
 
-        // Right side: EDITOR | FOUNT VERSION ]
-        let mut right_spans = Vec::new();
+        let border_type = BorderType::Rounded;
 
-        // Mode label
-        let active_context_mode = if app.mode == AppMode::Command || app.mode == AppMode::Search {
-            app.previous_mode
+        if !app.config.force_ascii {
+            let header_block = Block::default()
+                .borders(Borders::ALL)
+                .border_type(border_type)
+                .border_style(Style::default().fg(dim_color))
+                .title(Span::styled(
+                    format!("  FountTUI v{} ", env!("CARGO_PKG_VERSION")),
+                    Style::default().fg(mode_bg).add_modifier(Modifier::BOLD),
+                ));
+            
+            let inner_header = header_block.inner(header_area);
+            f.render_widget(header_block, header_area);
+            f.render_widget(Paragraph::new(Line::from(left_spans)), inner_header);
         } else {
-            app.mode
-        };
-
-        let mode_label = match active_context_mode {
-            AppMode::IndexCards => " INDEX CARDS ",
-            _ => " EDITOR ",
-        };
-        right_spans.push(Span::styled(
-            mode_label,
-            Style::default().fg(mode_bg).add_modifier(Modifier::BOLD),
-        ));
-        right_spans.push(Span::styled(sep, sep_style));
-
-        // Fount version
-        right_spans.push(Span::styled(
-            format!("Fount v{}", env!("CARGO_PKG_VERSION")),
-            Style::default().fg(mode_bg).add_modifier(Modifier::BOLD),
-        ));
-
-        // Closing bracket
-        right_spans.push(Span::styled(" ]", sep_style));
-
-        let left_width: usize = left_spans
-            .iter()
-            .map(|s| UnicodeWidthStr::width(s.content.as_ref()))
-            .sum();
-        let right_width: usize = right_spans
-            .iter()
-            .map(|s| UnicodeWidthStr::width(s.content.as_ref()))
-            .sum();
-        let total_width = header_area.width as usize;
-
-        if total_width > left_width + right_width {
-            let pad_len = total_width - left_width - right_width;
-            left_spans.push(Span::raw(" ".repeat(pad_len)));
+            f.render_widget(Paragraph::new(Line::from(left_spans)), header_area);
         }
-
-        left_spans.extend(right_spans);
-        f.render_widget(Paragraph::new(Line::from(left_spans)), header_area);
     }
 
+    // Main body with optional sidebar
     app.sidebar_area = Rect::default();
-    if app.mode == AppMode::SceneTree || app.mode == AppMode::CharacterNavigator {
+    let mut text_area = main_area;
+
+    if (app.mode == AppMode::SceneTree || app.mode == AppMode::CharacterNavigator) && main_area.width > 60 {
         let side_chunks = Layout::default()
             .direction(Direction::Horizontal)
             .constraints([
-                Constraint::Length(41),
-                Constraint::Length(1),
+                Constraint::Length(35),
                 Constraint::Min(0),
             ])
-            .split(text_area);
+            .split(main_area);
+        
         app.sidebar_area = side_chunks[0];
-        let shadow_area = side_chunks[1];
-        text_area = side_chunks[2];
+        text_area = side_chunks[1];
 
-        // Draw clean separator
-        let sep_col = "│".repeat(shadow_area.height as usize);
-        let sep_lines: Vec<Line> = sep_col
-            .chars()
-            .map(|_| Line::from(Span::styled("│", theme.secondary_style())))
-            .collect();
-        f.render_widget(Paragraph::new(sep_lines), shadow_area);
+        if !app.config.force_ascii {
+            let sidebar_block = Block::default()
+                .borders(Borders::ALL)
+                .border_type(BorderType::Rounded)
+                .border_style(Style::default().fg(dim_color))
+                .title(Span::styled(
+                    if app.mode == AppMode::SceneTree { " 󰙅 Scene Tree " } else { " 󰼭 Characters " },
+                    Style::default().fg(mode_bg).add_modifier(Modifier::BOLD),
+                ));
+            f.render_widget(sidebar_block.clone(), app.sidebar_area);
+            app.sidebar_area = sidebar_block.inner(app.sidebar_area);
+        }
     }
+
+    // Render Editor Panel
+    let text_area_inner = if !app.config.force_ascii {
+        let editor_block = Block::default()
+            .borders(Borders::ALL)
+            .border_type(BorderType::Rounded)
+            .border_style(Style::default().fg(dim_color))
+            .title(Span::styled(
+                if app.mode == AppMode::IndexCards { " 󰄬 Index Cards " } else { "  Script Editor " },
+                Style::default().fg(mode_bg).add_modifier(Modifier::BOLD),
+            ));
+        
+        let inner = editor_block.inner(text_area);
+        f.render_widget(editor_block, text_area);
+        inner
+    } else {
+        text_area
+    };
+    text_area = text_area_inner;
+    
 
     app.settings_area = Rect::default();
 
@@ -598,15 +587,7 @@ pub fn draw(f: &mut Frame, app: &mut App) {
                             .add_modifier(Modifier::BOLD)
                     };
 
-                    let prefix = if is_selected {
-                        if app.config.use_nerd_fonts {
-                            " 󰁔 "
-                        } else {
-                            " ▸ "
-                        }
-                    } else {
-                        "   "
-                    };
+                    let prefix = if is_selected { "  " } else { "  " };
                     let max_section_w = 32;
                     let mut current_line = String::new();
                     let mut first_line = true;
@@ -616,21 +597,14 @@ pub fn draw(f: &mut Frame, app: &mut App) {
                             if first_line {
                                 lines.push(Line::from(vec![
                                     Span::styled(prefix, style),
-                                    Span::styled(
-                                        if app.config.use_nerd_fonts {
-                                            "󰉋 "
-                                        } else {
-                                            "◆ "
-                                        },
-                                        style,
-                                    ),
+                                    Span::styled(if app.config.use_nerd_fonts { "󰉋 " } else { "◆ " }, style),
                                     Span::styled(current_line.clone(), style),
                                 ]));
                                 first_line = false;
                             } else {
                                 lines.push(Line::from(vec![
-                                    Span::styled("   ", Style::default()),
-                                    Span::styled("│  ", line_style),
+                                    Span::styled("  ", Style::default()),
+                                    Span::styled("│ ", line_style),
                                     Span::styled(current_line.clone(), style),
                                 ]));
                             }
@@ -646,54 +620,39 @@ pub fn draw(f: &mut Frame, app: &mut App) {
                         if first_line {
                             lines.push(Line::from(vec![
                                 Span::styled(prefix, style),
-                                Span::styled(
-                                    if app.config.use_nerd_fonts {
-                                        "󰉋 "
-                                    } else {
-                                        "◆ "
-                                    },
-                                    style,
-                                ),
+                                Span::styled(if app.config.use_nerd_fonts { "󰉋 " } else { "◆ " }, style),
                                 Span::styled(current_line, style),
                             ]));
                         } else {
                             lines.push(Line::from(vec![
-                                Span::styled("   ", Style::default()),
-                                Span::styled("│  ", line_style),
+                                Span::styled("  ", Style::default()),
+                                Span::styled("│ ", line_style),
                                 Span::styled(current_line, style),
                             ]));
                         }
                     }
 
                     if !item.synopses.is_empty() {
-                        let dim_style = if is_selected {
-                            style
-                        } else {
-                            theme.secondary_style().add_modifier(Modifier::ITALIC)
-                        };
-
+                        let dim_style = if is_selected { style } else { theme.secondary_style().add_modifier(Modifier::ITALIC) };
                         for syn in &item.synopses {
                             let mut current_line = String::new();
-                            let max_syn_w = 32;
-
+                            let max_syn_w = 30;
                             for word in syn.split_whitespace() {
                                 if current_line.len() + word.len() + 1 > max_syn_w {
                                     lines.push(Line::from(vec![
-                                        Span::styled("   ", Style::default()),
+                                        Span::styled("  ", Style::default()),
                                         Span::styled("│  ", line_style),
                                         Span::styled(current_line.clone(), dim_style),
                                     ]));
                                     current_line = word.to_string();
                                 } else {
-                                    if !current_line.is_empty() {
-                                        current_line.push(' ');
-                                    }
+                                    if !current_line.is_empty() { current_line.push(' '); }
                                     current_line.push_str(word);
                                 }
                             }
                             if !current_line.is_empty() {
                                 lines.push(Line::from(vec![
-                                    Span::styled("   ", Style::default()),
+                                    Span::styled("  ", Style::default()),
                                     Span::styled("│  ", line_style),
                                     Span::styled(current_line, dim_style),
                                 ]));
@@ -703,7 +662,7 @@ pub fn draw(f: &mut Frame, app: &mut App) {
 
                     if i + 1 < app.scenes.len() && !app.scenes[i + 1].is_section {
                         lines.push(Line::from(vec![
-                            Span::styled("   ", Style::default()),
+                            Span::styled("  ", Style::default()),
                             Span::styled("│", line_style),
                         ]));
                     } else {
@@ -711,9 +670,7 @@ pub fn draw(f: &mut Frame, app: &mut App) {
                     }
                 } else {
                     let mut base_style = if is_selected {
-                        Style::default()
-                            .bg(selected_bg)
-                            .add_modifier(Modifier::BOLD)
+                        Style::default().bg(selected_bg).add_modifier(Modifier::BOLD)
                     } else {
                         Style::default().add_modifier(Modifier::BOLD)
                     };
@@ -726,101 +683,68 @@ pub fn draw(f: &mut Frame, app: &mut App) {
                         base_style = base_style.fg(Color::from(c.clone()));
                     }
 
-                    let prefix = if is_selected { " ▸ " } else { "   " };
-
-                    let is_last_in_section =
-                        i + 1 == app.scenes.len() || app.scenes[i + 1].is_section;
-
+                    let is_last_in_section = i + 1 == app.scenes.len() || app.scenes[i + 1].is_section;
                     let has_parent_section = app.scenes[..i].iter().rev().any(|s| s.is_section);
 
                     let connector = if !has_parent_section {
                         "   "
                     } else if is_last_in_section {
-                        "└─ "
+                        "╰─ "
                     } else {
                         "├─ "
                     };
 
-                    let s_tag = if let Some(ref s) = item.scene_num {
-                        format!("{}. ", s)
-                    } else {
-                        String::new()
-                    };
+                    let s_tag = if let Some(ref s) = item.scene_num { format!("{}. ", s) } else { String::new() };
 
                     let max_heading_w = 33;
-                    let heading_indent = 5;
-                    let mut current_heading_len = 0;
-
                     let mut current_spans = vec![
-                        Span::styled(prefix, base_style),
+                        Span::styled("  ", Style::default()),
                         Span::styled(connector, line_style),
                     ];
+                    let mut current_len = 0;
 
                     if !s_tag.is_empty() {
                         current_spans.push(Span::styled(s_tag.clone(), base_style));
-                        current_heading_len += s_tag.len();
+                        current_len += s_tag.len();
                     }
 
                     for word in item.label.split_whitespace() {
-                        if current_heading_len + word.len() + heading_indent + 1 > max_heading_w {
+                        if current_len + word.len() + 5 > max_heading_w {
                             lines.push(Line::from(current_spans));
-                            let cont_char = if !has_parent_section || is_last_in_section {
-                                "   "
-                            } else {
-                                "│  "
-                            };
+                            let cont_char = if !has_parent_section || is_last_in_section { "  " } else { "│ " };
                             current_spans = vec![
-                                Span::styled("   ", Style::default()),
+                                Span::styled("  ", Style::default()),
                                 Span::styled(cont_char, line_style),
                             ];
-                            current_heading_len = 0;
+                            current_len = 0;
                         }
-
-                        if current_heading_len > 0 {
-                            current_spans.push(Span::styled(" ", base_style));
-                            current_heading_len += 1;
-                        }
-
+                        if current_len > 0 { current_spans.push(Span::styled(" ", base_style)); current_len += 1; }
                         current_spans.push(Span::styled(word.to_string(), base_style));
-                        current_heading_len += word.len();
+                        current_len += word.len();
                     }
-
                     lines.push(Line::from(current_spans));
 
                     if !item.synopses.is_empty() {
-                        let cont_char = if !has_parent_section || is_last_in_section {
-                            "   "
-                        } else {
-                            "│  "
-                        };
-                        let dim_style = if is_selected {
-                            base_style
-                        } else {
-                            theme.secondary_style().add_modifier(Modifier::ITALIC)
-                        };
-
+                        let cont_char = if !has_parent_section || is_last_in_section { "  " } else { "│ " };
+                        let dim_style = if is_selected { base_style } else { theme.secondary_style().add_modifier(Modifier::ITALIC) };
                         for syn in &item.synopses {
                             let mut current_line = String::new();
-                            let max_syn_w = 32;
-
                             for word in syn.split_whitespace() {
-                                if current_line.len() + word.len() + 1 > max_syn_w {
+                                if current_line.len() + word.len() + 5 > max_heading_w {
                                     lines.push(Line::from(vec![
-                                        Span::styled("   ", Style::default()),
+                                        Span::styled("  ", Style::default()),
                                         Span::styled(cont_char, line_style),
                                         Span::styled(current_line.clone(), dim_style),
                                     ]));
                                     current_line = word.to_string();
                                 } else {
-                                    if !current_line.is_empty() {
-                                        current_line.push(' ');
-                                    }
+                                    if !current_line.is_empty() { current_line.push(' '); }
                                     current_line.push_str(word);
                                 }
                             }
                             if !current_line.is_empty() {
                                 lines.push(Line::from(vec![
-                                    Span::styled("   ", Style::default()),
+                                    Span::styled("  ", Style::default()),
                                     Span::styled(cont_char, line_style),
                                     Span::styled(current_line, dim_style),
                                 ]));
@@ -830,7 +754,7 @@ pub fn draw(f: &mut Frame, app: &mut App) {
 
                     if !is_last_in_section && has_parent_section {
                         lines.push(Line::from(vec![
-                            Span::styled("   ", Style::default()),
+                            Span::styled("  ", Style::default()),
                             Span::styled("│", line_style),
                         ]));
                     } else {
@@ -915,7 +839,7 @@ pub fn draw(f: &mut Frame, app: &mut App) {
                         " > "
                     }
                 } else {
-                    "   "
+                    "  "
                 };
 
                 match item {
@@ -935,13 +859,13 @@ pub fn draw(f: &mut Frame, app: &mut App) {
                         let connector = if text.is_empty() {
                             "│"
                         } else if *is_last {
-                            "└─ "
+                            "╰─ "
                         } else {
                             "├─ "
                         };
 
                         let mut spans = vec![
-                            Span::styled("   ", Style::default()),
+                            Span::styled("  ", Style::default()),
                             Span::styled(connector, line_style),
                             Span::styled(text.clone(), dim_style.add_modifier(Modifier::ITALIC)),
                         ];
@@ -958,7 +882,7 @@ pub fn draw(f: &mut Frame, app: &mut App) {
                     EnsembleItem::SceneLink(name, _, _) => {
                         lines.push(Line::from(vec![
                             Span::styled(prefix, base_style),
-                            Span::styled("│  └─ ", line_style),
+                            Span::styled("│ ╰─ ", line_style),
                             Span::styled(name.clone(), dim_style.add_modifier(Modifier::ITALIC)),
                         ]));
                     }
@@ -1214,26 +1138,32 @@ pub fn draw(f: &mut Frame, app: &mut App) {
         );
     }
 
-    // ── Footer rendering (Zen Style) ────────────────────────────────────────
-    if footer_area.height > 0 {
+    // ── Footer rendering (Dashboard Style) ──────────────────────────────────
+    if show_bottom {
+        let footer_inner = if !app.config.force_ascii {
+            let footer_block = Block::default()
+                .borders(Borders::ALL)
+                .border_type(BorderType::Rounded)
+                .border_style(Style::default().fg(dim_color))
+                .title(Span::styled(
+                    format!(" {} ", mode_str.trim()),
+                    Style::default().fg(mode_bg).add_modifier(Modifier::BOLD),
+                ));
+            
+            let inner = footer_block.inner(footer_area);
+            f.render_widget(footer_block, footer_area);
+            inner
+        } else {
+            footer_area
+        };
+
         let dim_style = theme.secondary_style();
-        let sep = " | ";
+        let sep = "  ";
         let sep_style = dim_style;
 
         let mut spans = Vec::new();
 
-        // --- Left Section (Mode, File, Scene) ---
-        // Opening bracket
-        spans.push(Span::styled("[ ", sep_style));
-
-        // Mode label
-        spans.push(Span::styled(
-            mode_str.trim(),
-            Style::default().fg(mode_bg).add_modifier(Modifier::BOLD),
-        ));
-        spans.push(Span::styled(sep, sep_style));
-
-        // Filename + indicators
+        // --- Left Section (File Info) ---
         let fname = app
             .file
             .as_ref()
@@ -1246,23 +1176,25 @@ pub fn draw(f: &mut Frame, app: &mut App) {
         } else {
             ""
         };
+        
         spans.push(Span::styled(
-            format!("{}{}{}", fname, dirty_str, lock_str),
-            Style::default().fg(mode_bg),
+            format!(" {} ", fname),
+            Style::default().fg(mode_bg).add_modifier(Modifier::BOLD),
         ));
+        spans.push(Span::styled(dirty_str, theme.warning_style()));
+        spans.push(Span::styled(lock_str, theme.info_style()));
 
-        // Scene name (only if not in special modes that replace the center)
         let is_writing_mode = app.mode == AppMode::Normal || app.mode == AppMode::MetadataAutocomplete;
         if is_writing_mode && app.mode != AppMode::Home && app.mode != AppMode::IndexCards {
-            spans.push(Span::styled(sep, sep_style));
+            spans.push(Span::styled(" 󱞩 ", dim_style));
             let scene_name = app.get_current_scene_name();
             spans.push(Span::styled(
                 scene_name,
-                Style::default().fg(mode_bg).add_modifier(Modifier::BOLD),
+                theme.secondary_style(),
             ));
         }
 
-        // --- Right Section (Word count, Pos, F1) ---
+        // --- Right Section (Word count, Pos, Help) ---
         let mut right_spans = Vec::new();
         let current_context_mode = if app.mode == AppMode::Command || app.mode == AppMode::Search {
             app.previous_mode
@@ -1273,37 +1205,33 @@ pub fn draw(f: &mut Frame, app: &mut App) {
         if current_context_mode == AppMode::IndexCards {
             let sections = app.index_cards.iter().filter(|c| c.is_section).count();
             let scenes = app.index_cards.len() - sections;
-            right_spans.push(Span::styled(sep, sep_style));
-            right_spans.push(Span::styled("[?] Help", dim_style));
-            right_spans.push(Span::styled(sep, sep_style));
             right_spans.push(Span::styled(
-                format!("{} Sec, {} Sc", sections, scenes),
+                format!(" {} Sec / {} Sc ", sections, scenes),
                 dim_style,
             ));
         } else {
             let word_count = app.total_word_count();
             let pos_str = format!("Ln {}, Col {}", app.cursor_y + 1, app.cursor_x + 1);
-            right_spans.push(Span::styled(sep, sep_style));
-            right_spans.push(Span::styled(format!("{} words", word_count), dim_style));
+            right_spans.push(Span::styled(format!(" {} words ", word_count), dim_style));
             right_spans.push(Span::styled(sep, sep_style));
             right_spans.push(Span::styled(pos_str, dim_style));
         }
+        
         right_spans.push(Span::styled(sep, sep_style));
         right_spans.push(Span::styled(
-            if app.config.use_nerd_fonts { "󰌌 F1" } else { "F1" },
-            dim_style,
+            if app.config.use_nerd_fonts { " 󰌌 F1 Help " } else { " F1 Help " },
+            Style::default().fg(mode_bg).add_modifier(Modifier::BOLD),
         ));
-        // Closing bracket on the far right will be added later
 
         // --- Middle Section (Progress, Status, or Commands) ---
         let left_width: usize = spans.iter().map(|s| UnicodeWidthStr::width(s.content.as_ref())).sum::<usize>();
-        let right_width: usize = right_spans.iter().map(|s| UnicodeWidthStr::width(s.content.as_ref())).sum::<usize>() + 2; // +2 for " ]"
-        let total_width = footer_area.width as usize;
+        let right_width: usize = right_spans.iter().map(|s| UnicodeWidthStr::width(s.content.as_ref())).sum::<usize>();
+        let total_width = footer_inner.width as usize;
         let mid_width = total_width.saturating_sub(left_width).saturating_sub(right_width);
 
         if app.mode == AppMode::Command {
             let cmd_style = if app.command_error { theme.error_style().add_modifier(Modifier::BOLD) } else { Style::default().add_modifier(Modifier::BOLD) };
-            spans.push(Span::styled(" | /", sep_style));
+            spans.push(Span::styled(" /", sep_style));
             spans.push(Span::styled(&app.command_input, cmd_style));
             if !app.command_input.is_empty() && !app.command_error {
                 let commands = app.get_command_completions();
@@ -1313,12 +1241,11 @@ pub fn draw(f: &mut Frame, app: &mut App) {
                     spans.push(Span::styled(remainder.to_string(), Style::default().fg(dim_color)));
                 }
             }
-            // Fill remaining space
             let cur_len: usize = spans.iter().map(|s| UnicodeWidthStr::width(s.content.as_ref())).sum();
             let pad = total_width.saturating_sub(cur_len).saturating_sub(right_width);
             spans.push(Span::raw(" ".repeat(pad)));
         } else if matches!(app.mode, AppMode::Search | AppMode::PromptSave | AppMode::PromptFilename | AppMode::ReplaceOne | AppMode::ReplaceAll) {
-            spans.push(Span::styled(" | ", sep_style));
+            spans.push(Span::styled("  ", sep_style));
             match app.mode {
                 AppMode::Search => {
                     let prompt = if app.last_search.is_empty() { "Search: ".to_string() } else { format!("Search [{}]: ", app.last_search) };
@@ -1338,29 +1265,26 @@ pub fn draw(f: &mut Frame, app: &mut App) {
             let pad = total_width.saturating_sub(cur_len).saturating_sub(right_width);
             spans.push(Span::raw(" ".repeat(pad)));
         } else {
-            // Priority: Status Message > Save Indicator > Progress Bar
             let mut mid_spans = Vec::new();
             
             if let Some(msg) = &app.status_msg {
-                let style = if app.command_error { theme.error_style() } else { theme.secondary_style().add_modifier(Modifier::ITALIC) };
+                let style = if app.command_error { theme.error_style() } else { Style::default().fg(mode_bg).add_modifier(Modifier::ITALIC) };
                 mid_spans.push(Span::styled(format!("  {}  ", msg), style));
             } else if app.save_indicator_timer.is_some_and(|t| t.elapsed().as_secs_f32() < 2.0) {
                 let saved_msg = if app.config.use_nerd_fonts { "   Saved  " } else { "  [X] Saved  " };
                 mid_spans.push(Span::styled(saved_msg, theme.success_style().add_modifier(Modifier::BOLD)));
             } else if is_writing_mode && app.config.show_progress_bar && mid_width > 12 {
-                // Progress Bar
                 let total_lines = app.lines.len();
                 let current_line = app.cursor_y + 1;
                 let pct = if total_lines > 0 { (current_line as f32 / total_lines as f32).clamp(0.0, 1.0) } else { 0.0 };
                 
-                let bar_width = mid_width.saturating_sub(4);
+                let bar_width = mid_width.saturating_sub(10);
                 let filled = (pct * bar_width as f32) as usize;
                 let empty = bar_width.saturating_sub(filled);
                 
-                mid_spans.push(Span::raw("  "));
+                mid_spans.push(Span::styled(format!(" {:>3.0}% ", pct * 100.0), dim_style));
                 mid_spans.push(Span::styled("█".repeat(filled), Style::default().fg(mode_bg)));
                 mid_spans.push(Span::styled("░".repeat(empty), Style::default().fg(dim_color)));
-                mid_spans.push(Span::raw("  "));
             }
 
             let mid_content_width: usize = mid_spans.iter().map(|s| UnicodeWidthStr::width(s.content.as_ref())).sum::<usize>();
@@ -1374,16 +1298,7 @@ pub fn draw(f: &mut Frame, app: &mut App) {
         }
 
         spans.extend(right_spans);
-        spans.push(Span::styled(" ]", sep_style)); // Final closing bracket
-
-        // Sprint progress (if active, overlay or append?)
-        // To keep it simple and clean as requested, we'll only show sprint if not in command/search
-        if app.mode == AppMode::Normal && let Some(GoalType::Sprint { .. }) = &app.active_goal {
-            // Sprint data is collected but currently omitted from the large progress bar view
-        }
-
-        f.render_widget(Paragraph::new(Line::from(spans)), footer_area);
-
+        f.render_widget(Paragraph::new(Line::from(spans)), footer_inner);
 
         // Cursor Handling for Footer Modes
         if matches!(
@@ -1394,27 +1309,16 @@ pub fn draw(f: &mut Frame, app: &mut App) {
                 | AppMode::PromptFilename
                 | AppMode::ReplaceOne
                 | AppMode::ReplaceAll
-        ) && footer_area.height > 0
+        )
         {
-            // Calculate prefix width of the left side content
             let fname = app
                 .file
                 .as_ref()
                 .and_then(|p| p.file_name())
                 .map(|n| n.to_string_lossy().into_owned())
                 .unwrap_or_else(|| "New Script".to_string());
-            let dirty_str = if app.dirty { "*" } else { "" };
-            let lock_str = if app.config.production_lock {
-                " [L]"
-            } else {
-                ""
-            };
-
-            let prefix_w = 2 // "[ "
-                + UnicodeWidthStr::width(mode_str.trim())
-                + 3 // " | "
-                + UnicodeWidthStr::width(fname.as_str()) + UnicodeWidthStr::width(dirty_str) + UnicodeWidthStr::width(lock_str)
-                + 3; // " | "
+            
+            let prefix_w = UnicodeWidthStr::width(fname.as_str()) + 3; // Approx prefix width
 
             let (input_prefix, input_content) = match app.mode {
                 AppMode::Search => {
@@ -1435,11 +1339,11 @@ pub fn draw(f: &mut Frame, app: &mut App) {
                 _ => (String::new(), String::new()),
             };
 
-            let cur_x = footer_area.x
+            let cur_x = footer_inner.x
                 + (prefix_w
                     + UnicodeWidthStr::width(input_prefix.as_str())
                     + UnicodeWidthStr::width(input_content.as_str())) as u16;
-            f.set_cursor_position((cur_x, footer_area.y));
+            f.set_cursor_position((cur_x, footer_inner.y));
         }
     }
 

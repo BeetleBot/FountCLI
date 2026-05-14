@@ -20,10 +20,10 @@ pub fn draw_quick_help(f: &mut Frame, app: &App, area: Rect) {
             shortcuts.push(("n", "Add Scene"));
             shortcuts.push(("Shift+N", "Add Section"));
             shortcuts.push(("Del/Backspace", "Delete Card"));
-            shortcuts.push(("?", "Close Quick Help"));
+            shortcuts.push(("?", "Toggle Quick Help"));
         }
         _ => {
-            shortcuts.push(("?", "Close Quick Help"));
+            shortcuts.push(("?", "Toggle Quick Help"));
         }
     }
 

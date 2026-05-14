@@ -4,7 +4,7 @@ use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, BorderType, Clear, Paragraph, List, ListItem},
+    widgets::{Block, Borders, BorderType, Clear, Paragraph, List, ListItem, Sparkline, Table, Row, Cell},
 };
 
 pub fn draw_xray(f: &mut Frame, app: &mut App) {
@@ -108,7 +108,6 @@ pub fn draw_xray(f: &mut Frame, app: &mut App) {
         let ctx = XrayRenderContext {
             accent,
             dim,
-            normal_fg,
             theme: &theme,
             use_nerd_fonts: app.config.use_nerd_fonts,
         };
@@ -144,7 +143,6 @@ pub fn draw_xray(f: &mut Frame, app: &mut App) {
 struct XrayRenderContext<'a> {
     pub accent: Color,
     pub dim: Color,
-    pub normal_fg: Color,
     pub theme: &'a crate::theme::Theme,
     pub use_nerd_fonts: bool,
 }
@@ -153,238 +151,246 @@ fn draw_dialogue_tab(
     f: &mut Frame,
     area: Rect,
     data: &crate::app::XRayData,
-    scroll: usize,
+    _scroll: usize, // Table handles its own layout usually, but we'll use area constraints
     ctx: &XrayRenderContext,
 ) {
     let accent = ctx.accent;
-    let normal_fg = ctx.normal_fg;
     let theme = ctx.theme;
+    let dim = ctx.dim;
 
-    let mut lines = Vec::new();
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(2), // Title
+            Constraint::Min(0),   // Table
+        ])
+        .split(area);
 
-    lines.push(Line::from(Span::styled(
-        "Dialogue Balance",
-        Style::default().fg(accent).add_modifier(Modifier::BOLD),
-    )));
-    lines.push(Line::from(""));
+    f.render_widget(
+        Paragraph::new(vec![
+            Line::from(Span::styled("Dialogue Balance", Style::default().fg(accent).add_modifier(Modifier::BOLD))),
+            Line::from(Span::styled(format!("Total dialogue words: {}", data.total_dialogue_words), theme.secondary_style())),
+        ]),
+        chunks[0],
+    );
 
     if data.characters.is_empty() {
-        lines.push(Line::from(Span::styled(
-            "  No dialogue found in script.",
-            theme.secondary_style().add_modifier(Modifier::ITALIC),
-        )));
-    } else {
-        lines.push(Line::from(vec![
-            Span::styled(
-                format!("  Total dialogue words: {}", data.total_dialogue_words),
-                theme.secondary_style(),
-            ),
-        ]));
-        lines.push(Line::from(""));
-
-        let bar_max_w = area.width.saturating_sub(45) as usize;
-        let max_name_len = data.characters.iter().map(|c| c.name.len()).max().unwrap_or(8).min(18);
-
-        for ch in &data.characters {
-            let name = if ch.name.len() > max_name_len {
-                format!("{:.width$}", ch.name, width = max_name_len)
-            } else {
-                format!("{:width$}", ch.name, width = max_name_len)
-            };
-
-            let filled = ((ch.percentage / 100.0) * bar_max_w as f32).round() as usize;
-            let empty = bar_max_w.saturating_sub(filled);
-            let bar = format!("{}{}", "█".repeat(filled), "░".repeat(empty));
-
-            let pct_str = format!("{:5.1}%", ch.percentage);
-            let line_str = format!("{:>4}L", ch.dialogue_lines);
-            let word_str = format!("{:>5}w", ch.word_count);
-
-            lines.push(Line::from(vec![
-                Span::styled(format!("  {} ", name), Style::default().fg(normal_fg).add_modifier(Modifier::BOLD)),
-                Span::styled(bar, Style::default().fg(accent)),
-                Span::styled(format!(" {} {} {}", pct_str, line_str, word_str), theme.secondary_style()),
-            ]));
-        }
+        f.render_widget(
+            Paragraph::new("\n  No dialogue found in script.").alignment(Alignment::Center),
+            chunks[1],
+        );
+        return;
     }
 
-    let content_h = area.height as usize;
-    let max_scroll = lines.len().saturating_sub(content_h);
-    let scroll = scroll.min(max_scroll);
-    let visible: Vec<Line> = lines.into_iter().skip(scroll).take(content_h).collect();
-    f.render_widget(Paragraph::new(visible), area);
+    let header = Row::new(vec![
+        Cell::from("Character").style(Style::default().add_modifier(Modifier::BOLD)),
+        Cell::from("Frequency").style(Style::default().add_modifier(Modifier::BOLD)),
+        Cell::from("Lines").style(Style::default().add_modifier(Modifier::BOLD)),
+        Cell::from("Words").style(Style::default().add_modifier(Modifier::BOLD)),
+        Cell::from("Balance").style(Style::default().add_modifier(Modifier::BOLD)),
+    ])
+    .style(Style::default().fg(accent))
+    .bottom_margin(1);
+
+    let mut rows = Vec::new();
+    let bar_w: usize = 20;
+
+    for ch in &data.characters {
+        let filled = ((ch.percentage / 100.0) * bar_w as f32).round() as usize;
+        let empty = bar_w.saturating_sub(filled);
+        let bar = format!("{}{}", "█".repeat(filled), " ".repeat(empty));
+
+        rows.push(Row::new(vec![
+            Cell::from(ch.name.clone()).style(Style::default().add_modifier(Modifier::BOLD)),
+            Cell::from(format!("{:.1}%", ch.percentage)),
+            Cell::from(ch.dialogue_lines.to_string()),
+            Cell::from(ch.word_count.to_string()),
+            Cell::from(bar).style(Style::default().fg(accent)),
+        ])
+        .style(theme.secondary_style())
+        .bottom_margin(0));
+    }
+
+    let table = Table::new(rows, [
+        Constraint::Percentage(25),
+        Constraint::Percentage(15),
+        Constraint::Percentage(15),
+        Constraint::Percentage(15),
+        Constraint::Min(25),
+    ])
+    .header(header)
+    .block(Block::default()
+        .borders(Borders::TOP)
+        .border_style(Style::default().fg(dim))
+        .border_type(BorderType::Plain))
+    .column_spacing(1);
+
+    f.render_widget(table, chunks[1]);
 }
 
 fn draw_pacing_tab(
     f: &mut Frame,
     area: Rect,
     data: &crate::app::XRayData,
-    scroll: usize,
+    _scroll: usize,
     ctx: &XrayRenderContext,
 ) {
     let accent = ctx.accent;
     let theme = ctx.theme;
+    let dim = ctx.dim;
 
-    let mut lines = Vec::new();
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(2), // Title
+            Constraint::Length(8), // Action Sparkline
+            Constraint::Length(8), // Dialogue Sparkline
+            Constraint::Min(0),   // Legend/Details
+        ])
+        .split(area);
 
-    lines.push(Line::from(Span::styled(
-        "Pacing Heatmap — Action vs Dialogue",
-        Style::default().fg(accent).add_modifier(Modifier::BOLD),
-    )));
-    lines.push(Line::from(""));
+    f.render_widget(
+        Paragraph::new(vec![
+            Line::from(Span::styled("Pacing Heatmap", Style::default().fg(accent).add_modifier(Modifier::BOLD))),
+            Line::from(Span::styled("Action Energy vs. Dialogue Frequency across pages", theme.secondary_style())),
+        ]),
+        chunks[0],
+    );
 
     if data.pacing_map.is_empty() {
-        lines.push(Line::from(Span::styled(
-            "  No page data available.",
-            theme.secondary_style().add_modifier(Modifier::ITALIC),
-        )));
-    } else {
-        // Legend
-        lines.push(Line::from(vec![
-            Span::styled("  ", Style::default()),
-            Span::styled("█", Style::default().fg(accent)),
-            Span::styled(" = Action   ", theme.secondary_style()),
-            Span::styled("░", Style::default().fg(Color::from(theme.ui.search_highlight_bg.clone()))),
-            Span::styled(" = Dialogue", theme.secondary_style()),
-        ]));
-        lines.push(Line::from(""));
-
-        let bar_w = area.width.saturating_sub(14) as usize;
-
-        for block in &data.pacing_map {
-            let total = block.action_lines + block.dialogue_lines;
-            if total == 0 {
-                lines.push(Line::from(vec![
-                    Span::styled(format!("  pg{:<3} ", block.page), theme.secondary_style()),
-                    Span::styled("─".repeat(bar_w), theme.secondary_style()),
-                ]));
-                continue;
-            }
-
-            let action_ratio = block.action_lines as f32 / total as f32;
-            let action_cells = (action_ratio * bar_w as f32).round() as usize;
-            let dialogue_cells = bar_w.saturating_sub(action_cells);
-
-            let pct_str = format!("{:3.0}%A", action_ratio * 100.0);
-
-            lines.push(Line::from(vec![
-                Span::styled(format!("  pg{:<3} ", block.page), theme.secondary_style()),
-                Span::styled("█".repeat(action_cells), Style::default().fg(accent)),
-                Span::styled("░".repeat(dialogue_cells), Style::default().fg(Color::from(theme.ui.search_highlight_bg.clone()))),
-                Span::styled(format!(" {}", pct_str), theme.secondary_style()),
-            ]));
-        }
+        f.render_widget(
+            Paragraph::new("\n  No page data available.").alignment(Alignment::Center),
+            chunks[1],
+        );
+        return;
     }
 
-    let content_h = area.height as usize;
-    let max_scroll = lines.len().saturating_sub(content_h);
-    let scroll = scroll.min(max_scroll);
-    let visible: Vec<Line> = lines.into_iter().skip(scroll).take(content_h).collect();
-    f.render_widget(Paragraph::new(visible), area);
+    let action_data: Vec<u64> = data.pacing_map.iter().map(|b| b.action_lines as u64).collect();
+    let dialogue_data: Vec<u64> = data.pacing_map.iter().map(|b| b.dialogue_lines as u64).collect();
+
+    let action_spark = Sparkline::default()
+        .block(Block::default()
+            .title(Span::styled(" Action Energy ", Style::default().fg(accent)))
+            .borders(Borders::LEFT | Borders::BOTTOM)
+            .border_style(Style::default().fg(dim)))
+        .data(&action_data)
+        .style(Style::default().fg(accent));
+
+    let dialogue_spark = Sparkline::default()
+        .block(Block::default()
+            .title(Span::styled(" Dialogue Frequency ", Style::default().fg(Color::from(theme.ui.search_highlight_bg.clone()))))
+            .borders(Borders::LEFT | Borders::BOTTOM)
+            .border_style(Style::default().fg(dim)))
+        .data(&dialogue_data)
+        .style(Style::default().fg(Color::from(theme.ui.search_highlight_bg.clone())));
+
+    f.render_widget(action_spark, chunks[1]);
+    f.render_widget(dialogue_spark, chunks[2]);
+
+    // Summary box
+    let avg_action = if !action_data.is_empty() { action_data.iter().sum::<u64>() / action_data.len() as u64 } else { 0 };
+    let avg_dialogue = if !dialogue_data.is_empty() { dialogue_data.iter().sum::<u64>() / dialogue_data.len() as u64 } else { 0 };
+
+    let summary = Paragraph::new(vec![
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("  Analysis: ", theme.secondary_style().add_modifier(Modifier::BOLD)),
+            Span::styled(format!("Avg {} action lines/page, {} dialogue lines/page.", avg_action, avg_dialogue), theme.secondary_style()),
+        ]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("  Tip: ", theme.secondary_style().add_modifier(Modifier::BOLD)),
+            Span::styled("Higher action energy indicates faster pacing. Dense dialogue slows it down.", theme.secondary_style().add_modifier(Modifier::ITALIC)),
+        ]),
+    ]).block(Block::default().borders(Borders::TOP).border_style(Style::default().fg(dim)));
+
+    f.render_widget(summary, chunks[3]);
 }
 
 fn draw_scenes_tab(
     f: &mut Frame,
     area: Rect,
     data: &crate::app::XRayData,
-    scroll: usize,
+    _scroll: usize,
     ctx: &XrayRenderContext,
 ) {
     let accent = ctx.accent;
     let dim = ctx.dim;
-    let normal_fg = ctx.normal_fg;
     let theme = ctx.theme;
     let use_nerd_fonts = ctx.use_nerd_fonts;
 
-    let mut lines = Vec::new();
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(2), // Title
+            Constraint::Min(0),   // Table
+        ])
+        .split(area);
 
-    lines.push(Line::from(Span::styled(
-        "Scene Length Analysis",
-        Style::default().fg(accent).add_modifier(Modifier::BOLD),
-    )));
-    lines.push(Line::from(""));
+    let over_count = data.scenes.iter().filter(|s| s.is_over_limit).count();
+    f.render_widget(
+        Paragraph::new(vec![
+            Line::from(Span::styled("Scene Length Analysis", Style::default().fg(accent).add_modifier(Modifier::BOLD))),
+            Line::from(vec![
+                Span::styled(format!("Total: {}  ·  ", data.scenes.len()), theme.secondary_style()),
+                if over_count > 0 {
+                    Span::styled(format!("{} scene(s) exceed 3 pages", over_count), theme.warning_style().add_modifier(Modifier::BOLD))
+                } else {
+                    Span::styled("All scenes within optimal length", theme.success_style())
+                },
+            ]),
+        ]),
+        chunks[0],
+    );
 
     if data.scenes.is_empty() {
-        lines.push(Line::from(Span::styled(
-            "  No scenes found in script.",
-            theme.secondary_style().add_modifier(Modifier::ITALIC),
-        )));
-    } else {
-        let over_count = data.scenes.iter().filter(|s| s.is_over_limit).count();
-        lines.push(Line::from(vec![
-            Span::styled(
-                format!("  {} scenes total", data.scenes.len()),
-                Style::default().fg(dim),
-            ),
-            if over_count > 0 {
-                Span::styled(
-                    format!("  ·  {} over 3 pages", over_count),
-                    theme.warning_style().add_modifier(Modifier::BOLD),
-                )
-            } else {
-                Span::styled(
-                    format!("  {}  All scenes within limit", if use_nerd_fonts { " " } else { "* [X]" }),
-                    theme.success_style(),
-                )
-            },
-        ]));
-        lines.push(Line::from(""));
-
-        // Header
-        let max_label_w = area.width.saturating_sub(28) as usize;
-        lines.push(Line::from(vec![
-            Span::styled(
-                format!("  {:>4}  {:<width$}  {:>6}  Status", "№", "Scene", "Pages", width = max_label_w),
-                theme.secondary_style().add_modifier(Modifier::BOLD),
-            ),
-        ]));
-        lines.push(Line::from(Span::styled(
-            format!("  {}", "─".repeat(area.width.saturating_sub(4) as usize)),
-            theme.secondary_style(),
-        )));
-
-        for scene in &data.scenes {
-            let num_str = scene.scene_num.as_deref().unwrap_or("-").to_string();
-            let label = if scene.label.len() > max_label_w {
-                format!("{:.width$}...", &scene.label[..max_label_w.saturating_sub(3)], width = max_label_w - 3)
-            } else {
-                format!("{:<width$}", scene.label, width = max_label_w)
-            };
-
-            let pages_str = format!("{:.1}", scene.page_count);
-
-            let (status, status_style) = if scene.is_over_limit {
-                (
-                    if use_nerd_fonts { " TOO LONG" } else { "[!] TOO LONG" },
-                    theme.warning_style().add_modifier(Modifier::BOLD)
-                )
-            } else {
-                (
-                    if use_nerd_fonts { " " } else { "[X]" },
-                    theme.success_style()
-                )
-            };
-
-            let line_style = if scene.is_over_limit {
-                Style::default().fg(normal_fg)
-            } else {
-                theme.secondary_style()
-            };
-
-            lines.push(Line::from(vec![
-                Span::styled(format!("  {:>4}  ", num_str), line_style),
-                Span::styled(format!("{}  ", label), line_style),
-                Span::styled(format!("{:>5}  ", pages_str), line_style),
-                Span::styled(status, status_style),
-            ]));
-        }
+        f.render_widget(
+            Paragraph::new("\n  No scenes found in script.").alignment(Alignment::Center),
+            chunks[1],
+        );
+        return;
     }
 
-    let content_h = area.height as usize;
-    let max_scroll = lines.len().saturating_sub(content_h);
-    let scroll = scroll.min(max_scroll);
-    let visible: Vec<Line> = lines.into_iter().skip(scroll).take(content_h).collect();
-    f.render_widget(Paragraph::new(visible), area);
+    let header = Row::new(vec![
+        Cell::from("№").style(Style::default().add_modifier(Modifier::BOLD)),
+        Cell::from("Scene Description").style(Style::default().add_modifier(Modifier::BOLD)),
+        Cell::from("Pages").style(Style::default().add_modifier(Modifier::BOLD)),
+        Cell::from("Status").style(Style::default().add_modifier(Modifier::BOLD)),
+    ])
+    .style(Style::default().fg(accent))
+    .bottom_margin(1);
+
+    let mut rows = Vec::new();
+    for scene in &data.scenes {
+        let (status, status_style) = if scene.is_over_limit {
+            (if use_nerd_fonts { " TOO LONG" } else { "(!) LONG" }, theme.warning_style())
+        } else {
+            (if use_nerd_fonts { "  OK" } else { "(X) OK" }, theme.success_style())
+        };
+
+        rows.push(Row::new(vec![
+            Cell::from(scene.scene_num.as_deref().unwrap_or("-").to_string()),
+            Cell::from(scene.label.clone()),
+            Cell::from(format!("{:.1}", scene.page_count)),
+            Cell::from(status).style(status_style),
+        ])
+        .style(theme.secondary_style())
+        .bottom_margin(0));
+    }
+
+    let table = Table::new(rows, [
+        Constraint::Length(6),
+        Constraint::Percentage(60),
+        Constraint::Length(10),
+        Constraint::Min(15),
+    ])
+    .header(header)
+    .block(Block::default()
+        .borders(Borders::TOP)
+        .border_style(Style::default().fg(dim)))
+    .column_spacing(2);
+
+    f.render_widget(table, chunks[1]);
 }
 
 fn draw_breakdown_tab(
@@ -446,25 +452,27 @@ fn draw_breakdown_tab(
     // Right: Tag Breakdown
     let mut tag_lines = Vec::new();
     if let Some(selected_scene) = data.scene_breakdown.get(app.xray_breakdown_idx) {
+        tag_lines.push(Line::from(""));
         tag_lines.push(Line::from(vec![
             Span::styled("  Tags for: ", theme.secondary_style()),
             Span::styled(&selected_scene.label, Style::default().fg(accent).add_modifier(Modifier::BOLD)),
         ]));
+        tag_lines.push(Line::from(Span::styled(format!("  {}", "─".repeat(chunks[1].width.saturating_sub(4) as usize)), theme.secondary_style())));
         tag_lines.push(Line::from(""));
 
         if selected_scene.breakdown.is_empty() {
             tag_lines.push(Line::from(Span::styled(
-                "    No tags in this scene.",
+                "    No production tags identified in this scene.",
                 theme.secondary_style().add_modifier(Modifier::ITALIC),
             )));
         } else {
             for (key, values) in &selected_scene.breakdown {
                 tag_lines.push(Line::from(vec![
-                    Span::styled(format!("    {}: ", key), Style::default().fg(accent).add_modifier(Modifier::BOLD)),
+                    Span::styled(format!("    {} ", key.to_uppercase()), Style::default().fg(accent).add_modifier(Modifier::BOLD)),
                 ]));
                 for v in values {
                     tag_lines.push(Line::from(vec![
-                        Span::styled("      · ", theme.secondary_style()),
+                        Span::styled("      → ", theme.secondary_style()),
                         Span::styled(v, theme.secondary_style()),
                     ]));
                 }
@@ -473,5 +481,12 @@ fn draw_breakdown_tab(
         }
     }
 
-    f.render_widget(Paragraph::new(tag_lines).block(Block::default().title(Span::styled(" [ Details ] ", Style::default().fg(accent).add_modifier(Modifier::BOLD)))), chunks[1]);
+    f.render_widget(
+        Paragraph::new(tag_lines)
+            .block(Block::default()
+                .borders(Borders::LEFT)
+                .border_style(Style::default().fg(dim))
+                .title(Span::styled(" [ Details ] ", Style::default().fg(accent).add_modifier(Modifier::BOLD)))),
+        chunks[1],
+    );
 }

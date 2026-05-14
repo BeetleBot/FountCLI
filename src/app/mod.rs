@@ -370,6 +370,7 @@ pub struct App {
     pub xray_breakdown_idx: usize,
     pub xray_breakdown_state: ListState,
     pub save_indicator_timer: Option<Instant>,
+    pub status_timer: Option<Instant>,
 
     pub selected_card_idx: usize,
     pub is_card_editing: bool,
@@ -563,6 +564,7 @@ impl App {
             xray_breakdown_idx: 0,
             xray_breakdown_state: ListState::default(),
             save_indicator_timer: None,
+            status_timer: None,
 
             selected_card_idx: 0,
             is_card_editing: false,
@@ -1110,7 +1112,7 @@ impl App {
             }
             "ic" => {
                 self.mode = AppMode::IndexCards;
-                self.set_status("Index Cards Mode: [Arrows] Navigate, [Enter] Edit, [n] New, [Shift+Arrows] Swap, [Del] Remove, [/] Command");
+                self.set_status("Index Cards Mode: [Arrows] Navigate, [Enter] Edit, [n] New, [Shift+Arrows] Swap, [Del] Remove, [?] Help, [/] Command");
             }
             "editor" | "ed" => {
                 self.mode = AppMode::Normal;
