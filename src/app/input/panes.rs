@@ -44,12 +44,9 @@ impl App {
                                 *text_changed = true;
                                 *cursor_moved = true;
                                 *update_target_x = true;
-                                self.mode = AppMode::Normal;
-                                self.metadata_query.clear();
-                            } else {
-                                self.mode = AppMode::Normal;
-                                self.metadata_query.clear();
                             }
+                            self.mode = AppMode::Normal;
+                            self.metadata_query.clear();
                         }
                         KeyCode::Backspace => {
                             if self.metadata_query.is_empty() {
@@ -1112,16 +1109,14 @@ impl App {
                             self.theme_picker_state.select(Some(new_idx));
                         }
                         KeyCode::Enter => {
-                            if let Some(idx) = self.theme_picker_state.selected() {
-                                if idx < themes.len() {
-                                    let name = themes[idx].clone();
-                                    if self.theme_manager.set_theme(&name) {
-                                        self.theme = self.theme_manager.current_theme.clone();
-                                        self.config.theme = self.theme.name.clone();
-                                        let _ = crate::config::Config::save_string_setting("theme", &self.theme.name);
-                                        self.set_status(&format!("Theme set to {}", self.theme.name));
-                                        self.update_layout();
-                                    }
+                            if let Some(idx) = self.theme_picker_state.selected().filter(|&i| i < themes.len()) {
+                                let name = themes[idx].clone();
+                                if self.theme_manager.set_theme(&name) {
+                                    self.theme = self.theme_manager.current_theme.clone();
+                                    self.config.theme = self.theme.name.clone();
+                                    let _ = crate::config::Config::save_string_setting("theme", &self.theme.name);
+                                    self.set_status(&format!("Theme set to {}", self.theme.name));
+                                    self.update_layout();
                                 }
                             }
                             self.mode = AppMode::Normal;

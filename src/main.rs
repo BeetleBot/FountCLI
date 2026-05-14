@@ -116,10 +116,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         app.check_goal();
         
         // Clear status message after 4 seconds
-        if let Some(timer) = app.status_timer {
-            if timer.elapsed().as_secs() >= 4 {
-                app.clear_status();
-            }
+        if let Some(_timer) = app.status_timer.filter(|t| t.elapsed().as_secs() >= 4) {
+            app.clear_status();
         }
 
         if text_changed {

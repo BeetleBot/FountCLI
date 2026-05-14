@@ -592,7 +592,7 @@ pub fn draw(f: &mut Frame, app: &mut App) {
                             .add_modifier(Modifier::BOLD)
                     };
 
-                    let prefix = if is_selected { "  " } else { "  " };
+                    let prefix = "  ";
                     let max_section_w = 32;
                     let mut current_line = String::new();
                     let mut first_line = true;
