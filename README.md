@@ -1,5 +1,9 @@
 <p align="center">
   <img src="assets/icons/FountTUI_Logo.png" alt="Fount Logo" width="180">
+  <br>
+  <b>FOUNT</b>
+  <br>
+  <i>Blockbusters in Terminal</i>
 </p>
 
 # Fount
