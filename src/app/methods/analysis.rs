@@ -609,6 +609,33 @@ impl App {
                     self.locations.insert(final_loc);
                 }
             }
+
+            // Extract tags from any line (hidden notes or action)
+            let mut start_search = 0;
+            let line = &self.lines[i];
+            while let Some(start) = line[start_search..].find("[[") {
+                let abs_start = start_search + start;
+                if let Some(end) = line[abs_start..].find("]]") {
+                    let abs_end = abs_start + end;
+                    let content = &line[abs_start + 2..abs_end];
+                    if let Some((key, val)) = content.split_once(':') {
+                        let key = key.trim().to_uppercase();
+                        if !key.is_empty() {
+                            for v in val.split(',') {
+                                let v_trimmed = v.trim();
+                                if !v_trimmed.is_empty() {
+                                    if key == "CAST" || key == "CHARACTER" {
+                                        self.characters.insert(v_trimmed.to_uppercase_1to1());
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    start_search = abs_end + 2;
+                } else {
+                    break;
+                }
+            }
         }
         self.update_index_cards();
         self.update_metadata();
