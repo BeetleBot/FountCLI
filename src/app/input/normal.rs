@@ -265,8 +265,18 @@ impl App {
                 self.move_page_down();
                 *cursor_moved = true;
             }
+            KeyCode::Home if ctrl => {
+                self.move_to_top();
+                *update_target_x = true;
+                *cursor_moved = true;
+            }
             KeyCode::Home => {
                 self.move_home();
+                *update_target_x = true;
+                *cursor_moved = true;
+            }
+            KeyCode::End if ctrl => {
+                self.move_to_bottom();
                 *update_target_x = true;
                 *cursor_moved = true;
             }

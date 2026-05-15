@@ -888,4 +888,130 @@ impl crate::app::App {
         }
         self.dirty = true;
     }
+
+    pub fn clean_script(&mut self) {
+        self.save_state(true);
+        self.last_edit = LastEdit::Other;
+
+        let mut trimmed_count = 0;
+        let mut collapsed_count = 0;
+
+        // 1. Basic trim of all lines
+        for line in self.lines.iter_mut() {
+            let old_len = line.chars().count();
+            let trimmed = line.trim();
+            let new_len = trimmed.chars().count();
+            if new_len < old_len {
+                trimmed_count += old_len - new_len;
+                *line = trimmed.to_string();
+            }
+        }
+
+        self.parse_document();
+
+        // 2. Build new lines list with standardized spacing
+        let mut new_lines: Vec<String> = Vec::new();
+        let mut new_types: Vec<LineType> = Vec::new();
+
+        for i in 0..self.lines.len() {
+            let line = &self.lines[i];
+            let t = self.types[i];
+
+            if line.is_empty() {
+                continue;
+            }
+
+            // --- SPACING BEFORE ---
+            let needs_blank_before = match t {
+                LineType::SceneHeading
+                | LineType::Transition
+                | LineType::Section
+                | LineType::Synopsis
+                | LineType::Shot
+                | LineType::PageBreak => !new_lines.is_empty(),
+                LineType::Character | LineType::DualDialogueCharacter => {
+                    if let Some((_, prev_t)) = self.get_last_non_empty_type(&new_lines, &new_types) {
+                        !matches!(prev_t, LineType::SceneHeading | LineType::Transition)
+                    } else {
+                        false
+                    }
+                }
+                LineType::Action => {
+                    if let Some((_, prev_t)) = self.get_last_non_empty_type(&new_lines, &new_types) {
+                        !matches!(prev_t, LineType::SceneHeading)
+                    } else {
+                        false
+                    }
+                }
+                _ => false,
+            };
+
+            if needs_blank_before && !new_lines.last().is_some_and(|l| l.is_empty()) {
+                new_lines.push(String::new());
+                new_types.push(LineType::Empty);
+            }
+
+            // --- SPACING BETWEEN DIALOGUE PIECES ---
+            if matches!(t, LineType::Parenthetical | LineType::Dialogue)
+                && new_lines.last().is_some_and(|l| l.is_empty())
+                && let Some((_, prev_t)) = self.get_last_non_empty_type(&new_lines, &new_types)
+                && matches!(
+                    prev_t,
+                    LineType::Character
+                        | LineType::DualDialogueCharacter
+                        | LineType::Parenthetical
+                        | LineType::Dialogue
+                )
+            {
+                new_lines.pop();
+                new_types.pop();
+                collapsed_count += 1;
+            }
+
+            new_lines.push(line.clone());
+            new_types.push(t);
+
+            // --- SPACING AFTER ---
+            if t == LineType::SceneHeading {
+                new_lines.push(String::new());
+                new_types.push(LineType::Empty);
+            }
+        }
+
+        // Final collapse
+        let mut final_lines = Vec::new();
+        for line in new_lines {
+            if line.is_empty() && final_lines.last().is_some_and(|l: &String| l.is_empty()) {
+                collapsed_count += 1;
+                continue;
+            }
+            final_lines.push(line);
+        }
+
+        while final_lines.last().is_some_and(|l| l.is_empty()) {
+            final_lines.pop();
+            collapsed_count += 1;
+        }
+
+        self.lines = final_lines;
+        self.parse_document();
+        self.dirty = true;
+        self.set_status(&format!(
+            "Script cleaned: {} extra characters and {} extra lines removed",
+            trimmed_count, collapsed_count
+        ));
+    }
+
+    fn get_last_non_empty_type(
+        &self,
+        lines: &[String],
+        types: &[LineType],
+    ) -> Option<(usize, LineType)> {
+        lines
+            .iter()
+            .enumerate()
+            .rev()
+            .find(|(_, l)| !l.is_empty())
+            .map(|(i, _)| (i, types[i]))
+    }
 }

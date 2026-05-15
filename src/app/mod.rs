@@ -1233,6 +1233,11 @@ impl App {
                 self.set_status("All the scene numbers are cleared now");
                 *text_changed = true;
             }
+            "clean" => {
+                self.clean_script();
+                *text_changed = true;
+                *cursor_moved = true;
+            }
             "locknum" => {
                 self.config.production_lock = true;
                 self.set_status("Production lock ENABLED");

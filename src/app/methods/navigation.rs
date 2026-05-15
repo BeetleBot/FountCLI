@@ -264,6 +264,18 @@ impl App {
         self.cursor_x = self.line_len(self.cursor_y);
     }
 
+    pub fn move_to_top(&mut self) {
+        self.last_edit = LastEdit::Other;
+        self.cursor_y = 0;
+        self.cursor_x = 0;
+    }
+
+    pub fn move_to_bottom(&mut self) {
+        self.last_edit = LastEdit::Other;
+        self.cursor_y = self.lines.len().saturating_sub(1);
+        self.cursor_x = self.line_len(self.cursor_y);
+    }
+
     pub fn move_page_up(&mut self) {
         self.last_edit = LastEdit::Other;
         let height = self.visible_height.max(1);
