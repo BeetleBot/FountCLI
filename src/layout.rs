@@ -143,13 +143,7 @@ pub fn strip_sigils(raw: &str, lt: LineType) -> &str {
         LineType::Character | LineType::DualDialogueCharacter => raw.trim_end_matches('^').trim(),
         LineType::Synopsis if trimmed.starts_with('=') => trimmed[1..].trim_start(),
         LineType::Section if trimmed.starts_with('#') => trimmed[1..].trim_start(),
-        LineType::MetadataTitle => {
-            if let Some(idx) = raw.find(':') {
-                raw[idx + 1..].trim_start()
-            } else {
-                raw
-            }
-        }
+        LineType::MetadataTitle => raw,
         _ => raw,
     }
 }
@@ -854,7 +848,7 @@ mod layout_tests {
     fn test_strip_sigils_metadata() {
         assert_eq!(
             strip_sigils("Title: Value", LineType::MetadataTitle),
-            "Value"
+            "Title: Value"
         );
         assert_eq!(
             strip_sigils("   Value", LineType::MetadataValue),
@@ -867,7 +861,7 @@ mod layout_tests {
         assert_eq!(sigil_left_chars(".HEADING", LineType::SceneHeading), 1);
         assert_eq!(sigil_left_chars("!!SHOT", LineType::Shot), 2);
         assert_eq!(sigil_left_chars(">CENTER<", LineType::Centered), 1);
-        assert_eq!(sigil_left_chars("Title: Value", LineType::MetadataTitle), 7);
+        assert_eq!(sigil_left_chars("Title: Value", LineType::MetadataTitle), 0);
         assert_eq!(sigil_left_chars("   Value", LineType::MetadataValue), 0);
     }
 

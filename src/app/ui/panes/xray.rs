@@ -4,27 +4,16 @@ use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, BorderType, Clear, Paragraph, List, ListItem, Sparkline, Table, Row, Cell},
+    widgets::{Block, Borders, BorderType, Clear, Paragraph, List, ListItem, Sparkline, Table, Row, Cell, TableState},
 };
 
 pub fn draw_xray(f: &mut Frame, app: &mut App) {
     let area = f.area();
     let theme = app.theme.clone();
 
-    // Dim the background
-    let buf = f.buffer_mut();
-    for y in area.top()..area.bottom() {
-        for x in area.left()..area.right() {
-            if let Some(cell) = buf.cell_mut((x, y)) {
-                let st = cell.style();
-                if !theme.is_light() {
-                    cell.set_style(st.add_modifier(Modifier::DIM));
-                }
-            }
-        }
-    }
-
     let accent = Color::from(theme.ui.tree_mode_bg.clone());
+    let selection_bg = Color::from(theme.ui.selection_bg.clone());
+    let selection_fg = Color::from(theme.ui.selection_fg.clone());
     let dim = Color::from(theme.ui.dim.clone());
     let normal_fg = theme.primary_fg();
     let normal_bg = theme.primary_bg();
@@ -34,6 +23,21 @@ pub fn draw_xray(f: &mut Frame, app: &mut App) {
     let x = area.x + (area.width.saturating_sub(modal_w)) / 2;
     let y = area.y + (area.height.saturating_sub(modal_h)) / 2;
     let modal_area = Rect::new(x, y, modal_w, modal_h);
+
+    // Dim the background ONLY outside the modal area
+    let buf = f.buffer_mut();
+    for row in area.top()..area.bottom() {
+        for col in area.left()..area.right() {
+            if !modal_area.contains(ratatui::layout::Position { x: col, y: row })
+                && let Some(cell) = buf.cell_mut((col, row))
+            {
+                let st = cell.style();
+                if !theme.is_light() {
+                    cell.set_style(st.add_modifier(Modifier::DIM));
+                }
+            }
+        }
+    }
 
     f.render_widget(Clear, modal_area);
 
@@ -57,22 +61,22 @@ pub fn draw_xray(f: &mut Frame, app: &mut App) {
     // Tab bar
     let tab_titles = vec![
         Span::styled(" 1: Dialogue ", if app.xray_tab == 0 {
-            Style::default().fg(theme.ui.selection_fg.clone().into()).bg(accent).add_modifier(Modifier::BOLD)
+            Style::default().fg(selection_fg).bg(selection_bg).add_modifier(Modifier::BOLD)
         } else {
             theme.secondary_style()
         }),
         Span::styled(" 2: Pacing ", if app.xray_tab == 1 {
-            Style::default().fg(theme.ui.selection_fg.clone().into()).bg(accent).add_modifier(Modifier::BOLD)
+            Style::default().fg(selection_fg).bg(selection_bg).add_modifier(Modifier::BOLD)
         } else {
             theme.secondary_style()
         }),
         Span::styled(" 3: Scenes ", if app.xray_tab == 2 {
-            Style::default().fg(theme.ui.selection_fg.clone().into()).bg(accent).add_modifier(Modifier::BOLD)
+            Style::default().fg(selection_fg).bg(selection_bg).add_modifier(Modifier::BOLD)
         } else {
             theme.secondary_style()
         }),
         Span::styled(" 4: Breakdown ", if app.xray_tab == 3 {
-            Style::default().fg(theme.ui.selection_fg.clone().into()).bg(accent).add_modifier(Modifier::BOLD)
+            Style::default().fg(selection_fg).bg(selection_bg).add_modifier(Modifier::BOLD)
         } else {
             theme.secondary_style()
         }),
@@ -107,16 +111,18 @@ pub fn draw_xray(f: &mut Frame, app: &mut App) {
     if let Some(ref data) = app.xray_data {
         let ctx = XrayRenderContext {
             accent,
+            selection_bg,
+            selection_fg,
             dim,
             theme: &theme,
             use_nerd_fonts: app.config.use_nerd_fonts,
         };
 
         match app.xray_tab {
-            0 => draw_dialogue_tab(f, content_area, data, app.xray_scroll, &ctx),
+            0 => draw_dialogue_tab(f, content_area, data, &mut app.xray_dialogue_state, &ctx),
             1 => draw_pacing_tab(f, content_area, data, app.xray_scroll, &ctx),
-            2 => draw_scenes_tab(f, content_area, data, app.xray_scroll, &ctx),
-            3 => draw_breakdown_tab(f, content_area, app),
+            2 => draw_scenes_tab(f, content_area, data, &mut app.xray_scene_state, &ctx),
+            3 => draw_breakdown_tab(f, content_area, app, &ctx),
             _ => {}
         }
     } else {
@@ -131,7 +137,7 @@ pub fn draw_xray(f: &mut Frame, app: &mut App) {
         Paragraph::new(Line::from(vec![
             Span::styled(" <-/-> ", Style::default().fg(accent).add_modifier(Modifier::BOLD)),
             Span::styled("Switch Tab", theme.secondary_style()),
-            Span::styled("  ^/v ", Style::default().fg(accent).add_modifier(Modifier::BOLD)),
+            Span::styled("  j/k ", Style::default().fg(accent).add_modifier(Modifier::BOLD)),
             Span::styled("Scroll", theme.secondary_style()),
             Span::styled("  Esc ", Style::default().fg(accent).add_modifier(Modifier::BOLD)),
             Span::styled("Close", theme.secondary_style()),
@@ -142,6 +148,8 @@ pub fn draw_xray(f: &mut Frame, app: &mut App) {
 
 struct XrayRenderContext<'a> {
     pub accent: Color,
+    pub selection_bg: Color,
+    pub selection_fg: Color,
     pub dim: Color,
     pub theme: &'a crate::theme::Theme,
     pub use_nerd_fonts: bool,
@@ -151,7 +159,7 @@ fn draw_dialogue_tab(
     f: &mut Frame,
     area: Rect,
     data: &crate::app::XRayData,
-    _scroll: usize, // Table handles its own layout usually, but we'll use area constraints
+    state: &mut TableState,
     ctx: &XrayRenderContext,
 ) {
     let accent = ctx.accent;
@@ -207,7 +215,7 @@ fn draw_dialogue_tab(
             Cell::from(ch.word_count.to_string()),
             Cell::from(bar).style(Style::default().fg(accent)),
         ])
-        .style(theme.secondary_style())
+        .style(Style::default().fg(ctx.theme.primary_fg()))
         .bottom_margin(0));
     }
 
@@ -223,9 +231,11 @@ fn draw_dialogue_tab(
         .borders(Borders::TOP)
         .border_style(Style::default().fg(dim))
         .border_type(BorderType::Plain))
-    .column_spacing(1);
+    .column_spacing(1)
+    .row_highlight_style(Style::default().bg(ctx.selection_bg).fg(ctx.selection_fg).add_modifier(Modifier::BOLD))
+    .highlight_symbol("> ");
 
-    f.render_widget(table, chunks[1]);
+    f.render_stateful_widget(table, chunks[1], state);
 }
 
 fn draw_pacing_tab(
@@ -295,12 +305,12 @@ fn draw_pacing_tab(
         Line::from(""),
         Line::from(vec![
             Span::styled("  Analysis: ", theme.secondary_style().add_modifier(Modifier::BOLD)),
-            Span::styled(format!("Avg {} action lines/page, {} dialogue lines/page.", avg_action, avg_dialogue), theme.secondary_style()),
+            Span::styled(format!("Avg {} action lines/page, {} dialogue lines/page.", avg_action, avg_dialogue), Style::default().fg(theme.primary_fg())),
         ]),
         Line::from(""),
         Line::from(vec![
-            Span::styled("  Tip: ", theme.secondary_style().add_modifier(Modifier::BOLD)),
-            Span::styled("Higher action energy indicates faster pacing. Dense dialogue slows it down.", theme.secondary_style().add_modifier(Modifier::ITALIC)),
+            Span::styled("  Tip: ", Style::default().fg(theme.primary_fg()).add_modifier(Modifier::BOLD)),
+            Span::styled("Higher action energy indicates faster pacing. Dense dialogue slows it down.", Style::default().fg(theme.primary_fg()).add_modifier(Modifier::ITALIC)),
         ]),
     ]).block(Block::default().borders(Borders::TOP).border_style(Style::default().fg(dim)));
 
@@ -311,7 +321,7 @@ fn draw_scenes_tab(
     f: &mut Frame,
     area: Rect,
     data: &crate::app::XRayData,
-    _scroll: usize,
+    state: &mut TableState,
     ctx: &XrayRenderContext,
 ) {
     let accent = ctx.accent;
@@ -374,7 +384,7 @@ fn draw_scenes_tab(
             Cell::from(format!("{:.1}", scene.page_count)),
             Cell::from(status).style(status_style),
         ])
-        .style(theme.secondary_style())
+        .style(Style::default().fg(theme.primary_fg()))
         .bottom_margin(0));
     }
 
@@ -388,24 +398,27 @@ fn draw_scenes_tab(
     .block(Block::default()
         .borders(Borders::TOP)
         .border_style(Style::default().fg(dim)))
-    .column_spacing(2);
+    .column_spacing(2)
+    .row_highlight_style(Style::default().bg(ctx.selection_bg).fg(ctx.selection_fg).add_modifier(Modifier::BOLD))
+    .highlight_symbol("> ");
 
-    f.render_widget(table, chunks[1]);
+    f.render_stateful_widget(table, chunks[1], state);
 }
 
 fn draw_breakdown_tab(
     f: &mut Frame,
     area: Rect,
     app: &mut App,
+    ctx: &XrayRenderContext,
 ) {
     let data = match &app.xray_data {
         Some(d) => d,
         None => return,
     };
     
-    let accent = Color::from(app.theme.ui.tree_mode_bg.clone());
-    let dim = Color::from(app.theme.ui.dim.clone());
-    let theme = &app.theme;
+    let accent = ctx.accent;
+    let dim = ctx.dim;
+    let theme = ctx.theme;
 
     if data.scene_breakdown.is_empty() {
         f.render_widget(
@@ -418,8 +431,8 @@ fn draw_breakdown_tab(
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([
-            Constraint::Percentage(30),
-            Constraint::Percentage(70),
+            Constraint::Percentage(40),
+            Constraint::Percentage(60),
         ])
         .split(area);
 
@@ -427,11 +440,16 @@ fn draw_breakdown_tab(
     let mut scene_items = Vec::new();
     for (i, s) in data.scene_breakdown.iter().enumerate() {
         let prefix = s.scene_num.as_deref().unwrap_or("-");
-        let label = format!(" {:>3} {}", prefix, s.label);
-        let style = if i == app.xray_breakdown_idx {
-            Style::default().fg(theme.ui.selection_fg.clone().into()).bg(accent).add_modifier(Modifier::BOLD)
+        let label = if i == app.xray_breakdown_idx {
+            format!(" > {:>3} {}", prefix, s.label)
         } else {
-            theme.secondary_style()
+            format!("   {:>3} {}", prefix, s.label)
+        };
+        
+        let style = if i == app.xray_breakdown_idx {
+            Style::default().fg(ctx.selection_fg).bg(ctx.selection_bg).add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(theme.primary_fg())
         };
         
         // Add breathing space by using multiple lines for the ListItem
@@ -454,7 +472,7 @@ fn draw_breakdown_tab(
     if let Some(selected_scene) = data.scene_breakdown.get(app.xray_breakdown_idx) {
         tag_lines.push(Line::from(""));
         tag_lines.push(Line::from(vec![
-            Span::styled("  Tags for: ", theme.secondary_style()),
+            Span::styled("  Tags for: ", Style::default().fg(theme.primary_fg())),
             Span::styled(&selected_scene.label, Style::default().fg(accent).add_modifier(Modifier::BOLD)),
         ]));
         tag_lines.push(Line::from(Span::styled(format!("  {}", "─".repeat(chunks[1].width.saturating_sub(4) as usize)), theme.secondary_style())));
@@ -463,7 +481,7 @@ fn draw_breakdown_tab(
         if selected_scene.breakdown.is_empty() {
             tag_lines.push(Line::from(Span::styled(
                 "    No production tags identified in this scene.",
-                theme.secondary_style().add_modifier(Modifier::ITALIC),
+                Style::default().fg(theme.primary_fg()).add_modifier(Modifier::ITALIC),
             )));
         } else {
             for (key, values) in &selected_scene.breakdown {
@@ -472,8 +490,8 @@ fn draw_breakdown_tab(
                 ]));
                 for v in values {
                     tag_lines.push(Line::from(vec![
-                        Span::styled("      → ", theme.secondary_style()),
-                        Span::styled(v, theme.secondary_style()),
+                        Span::styled("      → ", Style::default().fg(theme.primary_fg())),
+                        Span::styled(v, Style::default().fg(theme.primary_fg())),
                     ]));
                 }
                 tag_lines.push(Line::from(""));

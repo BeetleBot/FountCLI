@@ -880,28 +880,56 @@ impl App {
                         KeyCode::Char('2') => { self.xray_tab = 1; self.xray_scroll = 0; }
                         KeyCode::Char('3') => { self.xray_tab = 2; self.xray_scroll = 0; }
                         KeyCode::Char('4') => { self.xray_tab = 3; self.xray_scroll = 0; }
-                        KeyCode::Up => {
-                            if self.xray_tab == 3 {
-                                if let Some(_data) = &self.xray_data
-                                    && self.xray_breakdown_idx > 0
-                                {
-                                    self.xray_breakdown_idx -= 1;
-                                    self.xray_breakdown_state.select(Some(self.xray_breakdown_idx));
+                        KeyCode::Up | KeyCode::Char('k') => {
+                            match self.xray_tab {
+                                0 => {
+                                    let i = self.xray_dialogue_state.selected().unwrap_or(0);
+                                    self.xray_dialogue_state.select(Some(i.saturating_sub(1)));
                                 }
-                            } else {
-                                self.xray_scroll = self.xray_scroll.saturating_sub(1);
+                                1 => self.xray_scroll = self.xray_scroll.saturating_sub(1),
+                                2 => {
+                                    let i = self.xray_scene_state.selected().unwrap_or(0);
+                                    self.xray_scene_state.select(Some(i.saturating_sub(1)));
+                                }
+                                3 => {
+                                    if let Some(_data) = &self.xray_data
+                                        && self.xray_breakdown_idx > 0
+                                    {
+                                        self.xray_breakdown_idx -= 1;
+                                        self.xray_breakdown_state.select(Some(self.xray_breakdown_idx));
+                                    }
+                                }
+                                _ => {}
                             }
                         }
-                        KeyCode::Down => {
-                            if self.xray_tab == 3 {
-                                if let Some(data) = &self.xray_data
-                                    && self.xray_breakdown_idx + 1 < data.scene_breakdown.len()
-                                {
-                                    self.xray_breakdown_idx += 1;
-                                    self.xray_breakdown_state.select(Some(self.xray_breakdown_idx));
+                        KeyCode::Down | KeyCode::Char('j') => {
+                            match self.xray_tab {
+                                0 => {
+                                    if let Some(data) = &self.xray_data {
+                                        let i = self.xray_dialogue_state.selected().unwrap_or(0);
+                                        if i + 1 < data.characters.len() {
+                                            self.xray_dialogue_state.select(Some(i + 1));
+                                        }
+                                    }
                                 }
-                            } else {
-                                self.xray_scroll += 1;
+                                1 => self.xray_scroll += 1,
+                                2 => {
+                                    if let Some(data) = &self.xray_data {
+                                        let i = self.xray_scene_state.selected().unwrap_or(0);
+                                        if i + 1 < data.scenes.len() {
+                                            self.xray_scene_state.select(Some(i + 1));
+                                        }
+                                    }
+                                }
+                                3 => {
+                                    if let Some(data) = &self.xray_data
+                                        && self.xray_breakdown_idx + 1 < data.scene_breakdown.len()
+                                    {
+                                        self.xray_breakdown_idx += 1;
+                                        self.xray_breakdown_state.select(Some(self.xray_breakdown_idx));
+                                    }
+                                }
+                                _ => {}
                             }
                         }
                         KeyCode::PageUp => {

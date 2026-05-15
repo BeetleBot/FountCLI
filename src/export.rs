@@ -492,7 +492,7 @@ And Beat itself, of course: https://www.beat-app.fi/
 
         let idx_title = plain_lines
             .iter()
-            .position(|l| l.trim() == "Fount Tutorial")
+            .position(|l| l.trim() == "Title: Fount Tutorial")
             .unwrap();
         let idx_scene = plain_lines
             .iter()
@@ -529,7 +529,7 @@ And Beat itself, of course: https://www.beat-app.fi/
 
         assert_eq!(
             plain_lines[idx_title],
-            format!("{}Fount Tutorial", " ".repeat(22))
+            format!("{}Title: Fount Tutorial", " ".repeat(22))
         );
         assert_eq!(
             plain_lines[idx_scene],

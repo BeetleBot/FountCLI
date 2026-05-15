@@ -369,6 +369,8 @@ pub struct App {
     pub xray_tab: usize,
     pub xray_breakdown_idx: usize,
     pub xray_breakdown_state: ListState,
+    pub xray_dialogue_state: TableState,
+    pub xray_scene_state: TableState,
     pub save_indicator_timer: Option<Instant>,
     pub status_timer: Option<Instant>,
 
@@ -563,6 +565,8 @@ impl App {
             xray_tab: 0,
             xray_breakdown_idx: 0,
             xray_breakdown_state: ListState::default(),
+            xray_dialogue_state: TableState::default(),
+            xray_scene_state: TableState::default(),
             save_indicator_timer: None,
             status_timer: None,
 

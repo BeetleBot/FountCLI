@@ -449,7 +449,7 @@ pub fn draw(f: &mut Frame, app: &mut App) {
                     let mut meta_key_end = 0;
 
                     if (row.line_type == LineType::MetadataKey
-                        || (row.line_type == LineType::MetadataTitle && row.is_active))
+                        || row.line_type == LineType::MetadataTitle)
                         && let Some(idx) = full_logical_line.find(':')
                     {
                         meta_key_end = full_logical_line[..=idx].chars().count() + 1;
