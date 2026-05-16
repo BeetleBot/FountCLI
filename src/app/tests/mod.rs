@@ -58,3 +58,4 @@ mod integration;
 mod performance;
 mod analysis;
 mod scene_tree;
+mod monkey;
