@@ -877,7 +877,7 @@ impl App {
                         KeyCode::Char('2') => { self.xray_tab = 1; self.xray_scroll = 0; }
                         KeyCode::Char('3') => { self.xray_tab = 2; self.xray_scroll = 0; }
                         KeyCode::Char('4') => { self.xray_tab = 3; self.xray_scroll = 0; }
-                        KeyCode::Up | KeyCode::Char('k') => {
+                        KeyCode::Up => {
                             match self.xray_tab {
                                 0 => {
                                     let i = self.xray_dialogue_state.selected().unwrap_or(0);
@@ -899,7 +899,7 @@ impl App {
                                 _ => {}
                             }
                         }
-                        KeyCode::Down | KeyCode::Char('j') => {
+                        KeyCode::Down => {
                             match self.xray_tab {
                                 0 => {
                                     if let Some(data) = &self.xray_data {

@@ -4,7 +4,9 @@ use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, BorderType, Clear, Paragraph, List, ListItem, Sparkline, Table, Row, Cell, TableState},
+    widgets::{
+        Block, Borders, BorderType, Clear, Paragraph, List, ListItem, Table, Row, Cell, TableState,
+    },
 };
 
 pub fn draw_xray(f: &mut Frame, app: &mut App) {
@@ -18,8 +20,8 @@ pub fn draw_xray(f: &mut Frame, app: &mut App) {
     let normal_fg = theme.primary_fg();
     let normal_bg = theme.primary_bg();
 
-    let modal_w = 100u16.min(area.width.saturating_sub(4));
-    let modal_h = 36u16.min(area.height.saturating_sub(2));
+    let modal_w = 110u16.min(area.width.saturating_sub(4));
+    let modal_h = (area.height * 90 / 100).max(36).min(area.height.saturating_sub(2));
     let x = area.x + (area.width.saturating_sub(modal_w)) / 2;
     let y = area.y + (area.height.saturating_sub(modal_h)) / 2;
     let modal_area = Rect::new(x, y, modal_w, modal_h);
@@ -137,7 +139,7 @@ pub fn draw_xray(f: &mut Frame, app: &mut App) {
         Paragraph::new(Line::from(vec![
             Span::styled(" <-/-> ", Style::default().fg(accent).add_modifier(Modifier::BOLD)),
             Span::styled("Switch Tab", theme.secondary_style()),
-            Span::styled("  j/k ", Style::default().fg(accent).add_modifier(Modifier::BOLD)),
+            Span::styled("  ↑/↓ ", Style::default().fg(accent).add_modifier(Modifier::BOLD)),
             Span::styled("Scroll", theme.secondary_style()),
             Span::styled("  Esc ", Style::default().fg(accent).add_modifier(Modifier::BOLD)),
             Span::styled("Close", theme.secondary_style()),
@@ -192,39 +194,31 @@ fn draw_dialogue_tab(
 
     let header = Row::new(vec![
         Cell::from("Character").style(Style::default().add_modifier(Modifier::BOLD)),
-        Cell::from("Frequency").style(Style::default().add_modifier(Modifier::BOLD)),
-        Cell::from("Lines").style(Style::default().add_modifier(Modifier::BOLD)),
-        Cell::from("Words").style(Style::default().add_modifier(Modifier::BOLD)),
-        Cell::from("Balance").style(Style::default().add_modifier(Modifier::BOLD)),
+        Cell::from("% of Script").style(Style::default().add_modifier(Modifier::BOLD)),
+        Cell::from("Total Lines").style(Style::default().add_modifier(Modifier::BOLD)),
+        Cell::from("Word Count").style(Style::default().add_modifier(Modifier::BOLD)),
     ])
     .style(Style::default().fg(accent))
     .bottom_margin(1);
 
     let mut rows = Vec::new();
-    let bar_w: usize = 20;
 
     for ch in &data.characters {
-        let filled = ((ch.percentage / 100.0) * bar_w as f32).round() as usize;
-        let empty = bar_w.saturating_sub(filled);
-        let bar = format!("{}{}", "█".repeat(filled), " ".repeat(empty));
-
         rows.push(Row::new(vec![
             Cell::from(ch.name.clone()).style(Style::default().add_modifier(Modifier::BOLD)),
             Cell::from(format!("{:.1}%", ch.percentage)),
             Cell::from(ch.dialogue_lines.to_string()),
             Cell::from(ch.word_count.to_string()),
-            Cell::from(bar).style(Style::default().fg(accent)),
         ])
         .style(Style::default().fg(ctx.theme.primary_fg()))
-        .bottom_margin(0));
+        .bottom_margin(1));
     }
 
     let table = Table::new(rows, [
-        Constraint::Percentage(25),
-        Constraint::Percentage(15),
-        Constraint::Percentage(15),
-        Constraint::Percentage(15),
-        Constraint::Min(25),
+        Constraint::Percentage(40),
+        Constraint::Percentage(20),
+        Constraint::Percentage(20),
+        Constraint::Percentage(20),
     ])
     .header(header)
     .block(Block::default()
@@ -242,79 +236,186 @@ fn draw_pacing_tab(
     f: &mut Frame,
     area: Rect,
     data: &crate::app::XRayData,
-    _scroll: usize,
+    scroll: usize,
     ctx: &XrayRenderContext,
 ) {
     let accent = ctx.accent;
     let theme = ctx.theme;
     let dim = ctx.dim;
 
-    let chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Length(2), // Title
-            Constraint::Length(8), // Action Sparkline
-            Constraint::Length(8), // Dialogue Sparkline
-            Constraint::Min(0),   // Legend/Details
-        ])
-        .split(area);
-
-    f.render_widget(
-        Paragraph::new(vec![
-            Line::from(Span::styled("Pacing Heatmap", Style::default().fg(accent).add_modifier(Modifier::BOLD))),
-            Line::from(Span::styled("Action Energy vs. Dialogue Frequency across pages", theme.secondary_style())),
-        ]),
-        chunks[0],
-    );
-
-    if data.pacing_map.is_empty() {
+    if data.scenes.is_empty() || data.pacing_map.is_empty() {
         f.render_widget(
-            Paragraph::new("\n  No page data available.").alignment(Alignment::Center),
-            chunks[1],
+            Paragraph::new("\n  No scene pacing data available.").alignment(Alignment::Center),
+            area,
         );
         return;
     }
 
-    let action_data: Vec<u64> = data.pacing_map.iter().map(|b| b.action_lines as u64).collect();
-    let dialogue_data: Vec<u64> = data.pacing_map.iter().map(|b| b.dialogue_lines as u64).collect();
+    let main_layout = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Min(0),      // Pulse Axis
+            Constraint::Length(28),  // Sidebar
+        ])
+        .split(area);
 
-    let action_spark = Sparkline::default()
-        .block(Block::default()
-            .title(Span::styled(" Action Energy ", Style::default().fg(accent)))
-            .borders(Borders::LEFT | Borders::BOTTOM)
-            .border_style(Style::default().fg(dim)))
-        .data(&action_data)
-        .style(Style::default().fg(accent));
+    let pulse_area = main_layout[0];
+    let sidebar_area = main_layout[1];
 
-    let dialogue_spark = Sparkline::default()
-        .block(Block::default()
-            .title(Span::styled(" Dialogue Frequency ", Style::default().fg(Color::from(theme.ui.search_highlight_bg.clone()))))
-            .borders(Borders::LEFT | Borders::BOTTOM)
-            .border_style(Style::default().fg(dim)))
-        .data(&dialogue_data)
-        .style(Style::default().fg(Color::from(theme.ui.search_highlight_bg.clone())));
+    // --- 1. Aggregating Pacing per Scene ---
+    let mut scene_pacing = Vec::new();
+    let mut current_page_f64: f64 = 0.0;
+    
+    for scene in &data.scenes {
+        let start_page = current_page_f64.floor() as usize;
+        let duration = scene.page_count as f64;
+        let end_page = (current_page_f64 + duration).ceil() as usize;
+        
+        // Aggregate action/dialogue from pacing_map
+        let range = start_page..end_page.min(data.pacing_map.len());
+        let (avg_action, avg_dialogue) = if range.is_empty() {
+            (0.0, 0.0)
+        } else {
+            let sum_action: usize = data.pacing_map[range.clone()].iter().map(|b| b.action_lines).sum();
+            let sum_dialogue: usize = data.pacing_map[range.clone()].iter().map(|b| b.dialogue_lines).sum();
+            let count = range.len() as f32;
+            (sum_action as f32 / count, sum_dialogue as f32 / count)
+        };
 
-    f.render_widget(action_spark, chunks[1]);
-    f.render_widget(dialogue_spark, chunks[2]);
+        scene_pacing.push((
+            scene.scene_num.as_deref().unwrap_or("-").to_string(),
+            (current_page_f64 + 1.0).floor() as usize,
+            scene.label.clone(),
+            avg_action,
+            avg_dialogue,
+        ));
+        
+        current_page_f64 += duration;
+    }
 
-    // Summary box
-    let avg_action = if !action_data.is_empty() { action_data.iter().sum::<u64>() / action_data.len() as u64 } else { 0 };
-    let avg_dialogue = if !dialogue_data.is_empty() { dialogue_data.iter().sum::<u64>() / dialogue_data.len() as u64 } else { 0 };
+    // --- 2. Render Pulse Axis ---
+    let max_action_global = scene_pacing.iter().map(|p| p.3).fold(0.0, f32::max).max(1.0);
+    let peak_scene_val = max_action_global;
 
-    let summary = Paragraph::new(vec![
-        Line::from(""),
-        Line::from(vec![
-            Span::styled("  Analysis: ", theme.secondary_style().add_modifier(Modifier::BOLD)),
-            Span::styled(format!("Avg {} action lines/page, {} dialogue lines/page.", avg_action, avg_dialogue), Style::default().fg(theme.primary_fg())),
-        ]),
-        Line::from(""),
-        Line::from(vec![
-            Span::styled("  Tip: ", Style::default().fg(theme.primary_fg()).add_modifier(Modifier::BOLD)),
-            Span::styled("Higher action energy indicates faster pacing. Dense dialogue slows it down.", Style::default().fg(theme.primary_fg()).add_modifier(Modifier::ITALIC)),
-        ]),
-    ]).block(Block::default().borders(Borders::TOP).border_style(Style::default().fg(dim)));
+    let action_color = Color::from(theme.ui.info.clone());
+    let dialogue_color = Color::from(theme.ui.search_highlight_bg.clone());
+    let bar_max_width = (pulse_area.width.saturating_sub(15) / 3) as usize;
 
-    f.render_widget(summary, chunks[3]);
+    let rows: Vec<Row> = scene_pacing.iter().skip(scroll).map(|(num, page, heading, action, dialogue)| {
+        let action_ratio = (action / 25.0).min(1.0);
+        let dialogue_ratio = (dialogue / 25.0).min(1.0);
+        
+        let action_len = (action_ratio * bar_max_width as f32) as usize;
+        let dialogue_len = (dialogue_ratio * bar_max_width as f32) as usize;
+
+        // Gradient logic for action (growing left)
+        let mut action_str = String::new();
+        if action_len > 0 {
+            action_str.push('░');
+            if action_len > 1 { action_str.push('▒'); }
+            if action_len > 2 { action_str.push('▓'); }
+            if action_len > 3 {
+                action_str.push_str(&"█".repeat(action_len - 3));
+            }
+        }
+        let action_display = format!("{:>width$}", action_str, width = bar_max_width);
+
+        // Gradient logic for dialogue (growing right)
+        let mut dialogue_str = String::new();
+        if dialogue_len > 0 {
+            dialogue_str.push_str(&"█".repeat(dialogue_len.saturating_sub(3)));
+            if dialogue_len > 2 { dialogue_str.push('▓'); }
+            if dialogue_len > 1 { dialogue_str.push('▒'); }
+            dialogue_str.push('░');
+        }
+        let dialogue_display = format!("{:<width$}", dialogue_str, width = bar_max_width);
+
+        let is_peak = *action == peak_scene_val;
+        let spine_style = if is_peak { Style::default().fg(theme.warning_style().fg.unwrap()).add_modifier(Modifier::BOLD) } else { Style::default().fg(dim) };
+        let spine_label = if is_peak { format!("󱐋 {:>2}/{} ", num, page) } else { format!("  {:>2}/{} ", num, page) };
+
+        Row::new(vec![
+            Cell::from(action_display).style(Style::default().fg(action_color)),
+            Cell::from(spine_label).style(spine_style),
+            Cell::from(dialogue_display).style(Style::default().fg(dialogue_color)),
+            Cell::from(heading.clone()).style(theme.secondary_style()),
+        ])
+        .bottom_margin(1)
+    }).collect();
+
+    let table = Table::new(rows, [
+        Constraint::Length(bar_max_width as u16),
+        Constraint::Length(12),
+        Constraint::Length(bar_max_width as u16),
+        Constraint::Min(0),
+    ])
+    .header(Row::new(vec![
+        Cell::from(Line::from("ACTION").alignment(Alignment::Right)),
+        Cell::from(Line::from("SCENE/PG").alignment(Alignment::Center)),
+        Cell::from(Line::from("DIALOGUE").alignment(Alignment::Left)),
+        Cell::from("CONTEXT"),
+    ]).style(Style::default().fg(accent).add_modifier(Modifier::BOLD)).bottom_margin(1))
+    .block(Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(Style::default().fg(dim))
+        .title(Span::styled(" [ Pulse Axis Analysis ] ", Style::default().fg(accent).add_modifier(Modifier::BOLD))))
+    .column_spacing(1);
+
+    f.render_widget(table, pulse_area);
+
+    // --- 3. Sidebar Diagnostic ---
+    let side_block = Block::default()
+        .borders(Borders::LEFT)
+        .border_style(Style::default().fg(dim))
+        .padding(ratatui::widgets::Padding::new(1, 1, 1, 0));
+    
+    let side_inner = side_block.inner(sidebar_area);
+    f.render_widget(side_block, sidebar_area);
+
+    let total_action: f32 = scene_pacing.iter().map(|p| p.3).sum();
+    let total_dialogue: f32 = scene_pacing.iter().map(|p| p.4).sum();
+    let avg_action = total_action / scene_pacing.len() as f32;
+    let avg_dialogue = total_dialogue / scene_pacing.len() as f32;
+    
+    let peak_scene_num = scene_pacing.iter().find(|p| p.3 == peak_scene_val).map(|p| p.0.clone()).unwrap_or_else(|| "-".to_string());
+
+    let mut side_lines = Vec::new();
+    side_lines.push(Line::from(Span::styled("DIAGNOSTICS", Style::default().fg(accent).add_modifier(Modifier::BOLD))));
+    side_lines.push(Line::from(vec![
+        Span::styled("Energy Avg:  ", theme.secondary_style()),
+        Span::styled(format!("{:.1}", avg_action), Style::default().fg(action_color).add_modifier(Modifier::BOLD)),
+    ]));
+    side_lines.push(Line::from(vec![
+        Span::styled("Verbal Avg:  ", theme.secondary_style()),
+        Span::styled(format!("{:.1}", avg_dialogue), Style::default().fg(dialogue_color).add_modifier(Modifier::BOLD)),
+    ]));
+    side_lines.push(Line::from(""));
+    side_lines.push(Line::from(Span::styled("PEAK RHYTHM", Style::default().fg(accent).add_modifier(Modifier::BOLD))));
+    side_lines.push(Line::from(vec![
+        Span::styled("Climax:      ", theme.secondary_style()),
+        Span::styled(format!("Scene #{}", peak_scene_num), Style::default().fg(theme.warning_style().fg.unwrap()).add_modifier(Modifier::BOLD)),
+    ]));
+    side_lines.push(Line::from(""));
+    side_lines.push(Line::from(""));
+    side_lines.push(Line::from(Span::styled("LEGEND", Style::default().fg(accent).add_modifier(Modifier::BOLD))));
+    side_lines.push(Line::from(vec![
+        Span::styled(" █ ", Style::default().fg(action_color)),
+        Span::styled("Action", theme.secondary_style()),
+    ]));
+    side_lines.push(Line::from(vec![
+        Span::styled(" █ ", Style::default().fg(dialogue_color)),
+        Span::styled("Dialogue", theme.secondary_style()),
+    ]));
+    side_lines.push(Line::from(vec![
+        Span::styled(" 󱐋 ", Style::default().fg(theme.warning_style().fg.unwrap())),
+        Span::styled("Climax Peak", theme.secondary_style()),
+    ]));
+
+    f.render_widget(
+        Paragraph::new(side_lines).wrap(ratatui::widgets::Wrap { trim: true }),
+        side_inner,
+    );
 }
 
 fn draw_scenes_tab(
@@ -431,8 +532,8 @@ fn draw_breakdown_tab(
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([
-            Constraint::Percentage(40),
-            Constraint::Percentage(60),
+            Constraint::Percentage(50),
+            Constraint::Percentage(50),
         ])
         .split(area);
 
