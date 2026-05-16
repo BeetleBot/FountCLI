@@ -56,3 +56,4 @@ mod ux;
 mod core;
 mod integration;
 mod performance;
+mod analysis;
