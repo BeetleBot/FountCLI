@@ -603,11 +603,33 @@ pub fn draw_export_modal(f: &mut Frame, app: &App) {
                 },
                 export_style,
             ),
-            Span::styled(" [ EXPORT REPORT ] ", export_style),
+            Span::styled(" [ GENERATE REPORT ] ", export_style),
+        ])));
+
+        // Add dynamic description for reports
+        options.push(ListItem::new(Line::raw("")));
+        options.push(ListItem::new(Line::from(vec![
+            Span::styled(" Description: ", theme.secondary_style().add_modifier(Modifier::BOLD)),
+        ])));
+        
+        let desc = match app.config.report_format.as_str() {
+            "csv_scene" => " A structured list of all scenes with headings, page numbers, and durations.",
+            "csv_char" => " Character stats: total lines, scene count, and dialogue percentages.",
+            "csv_location" => " A breakdown of all locations and the specific scenes set within them.",
+            "csv_notes" => " A list of all internal notes [[...]] and tagged markers in the script.",
+            "csv_breakdown" => " A production report covering cast, locations, and structural elements.",
+            "txt_dialogue" => " A plain text file containing only character names and dialogue lines.",
+            _ => "",
+        };
+        
+        options.push(ListItem::new(Line::from(vec![
+            Span::styled(desc, theme.secondary_style().add_modifier(Modifier::ITALIC)),
         ])));
     }
 
-    f.render_widget(List::new(options), layout[1]);
+    let options_list = List::new(options)
+        .block(Block::default().padding(ratatui::widgets::Padding::new(0, 0, 1, 1)));
+    f.render_widget(options_list, layout[1]);
 
     // 3. Footer
     let footer_text = Line::from(vec![

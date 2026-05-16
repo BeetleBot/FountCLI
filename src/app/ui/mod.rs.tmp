@@ -1217,16 +1217,7 @@ pub fn draw(f: &mut Frame, app: &mut App) {
 
         let is_writing_mode = app.mode == AppMode::Normal || app.mode == AppMode::MetadataAutocomplete;
         if is_writing_mode && app.mode != AppMode::Home && app.mode != AppMode::IndexCards {
-            spans.push(Span::styled(" 󱞩 ", dim_style));
-            let scene_name = app.get_current_scene_name();
-            spans.push(Span::styled(
-                scene_name,
-                theme.secondary_style(),
-            ));
-        }
-
-        // --- Right Section (Word count, Pos, Help) ---
-        let mut right_spans = Vec::new();
+            spans.push(Span::styled("         let mut right_spans = Vec::new();
         let current_context_mode = if app.mode == AppMode::Command || app.mode == AppMode::Search {
             app.previous_mode
         } else {
@@ -1272,7 +1263,16 @@ pub fn draw(f: &mut Frame, app: &mut App) {
                 help_text,
                 help_style,
             ));
+        }};
+        let mut help_style = Style::default().fg(mode_bg);
+        if !app.config.no_formatting {
+            help_style = help_style.add_modifier(Modifier::BOLD);
         }
+        right_spans.push(Span::styled(
+            help_text,
+            help_style,
+        ));
+
         // --- Middle Section (Progress, Status, or Commands) ---
         let left_width: usize = spans.iter().map(|s| UnicodeWidthStr::width(s.content.as_ref())).sum::<usize>();
         let right_width: usize = right_spans.iter().map(|s| UnicodeWidthStr::width(s.content.as_ref())).sum::<usize>();

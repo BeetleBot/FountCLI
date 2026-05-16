@@ -1371,7 +1371,9 @@ impl App {
                 self.selected_export_option = 0;
             }
             "sprint" => {
-                if let Some(arg) = args.first() {
+                if self.active_goal.is_some() {
+                    self.set_error("A sprint is already active! Cancel it first with /cancelsprint.");
+                } else if let Some(arg) = args.first() {
                     if let Ok(minutes) = arg.parse::<u64>() {
                         self.active_goal = Some(GoalType::Sprint {
                             start_time: Instant::now(),
