@@ -549,6 +549,7 @@ impl App {
                         }
                         KeyCode::Enter | KeyCode::Char(' ') | KeyCode::Char('\n') |
                         KeyCode::Char('n') | KeyCode::Char('N') |
+                        KeyCode::Char('s') | KeyCode::Char('S') |
                         KeyCode::Char('o') | KeyCode::Char('O') |
                         KeyCode::Char('t') | KeyCode::Char('T') |
                         KeyCode::Char('w') | KeyCode::Char('W') |

@@ -141,7 +141,7 @@ pub fn draw_home(f: &mut Frame, app: &mut App) {
 
     // ── RECENT FILES ──
     if !app.recent_files.is_empty() {
-        for (i, path) in app.recent_files.iter().take(3).enumerate() {
+        for (i, path) in app.recent_files.iter().take(4).enumerate() {
             let idx = 5 + i;
             let is_sel = idx == app.home_selected;
             let style = if is_sel { Style::default().add_modifier(Modifier::BOLD) } else { Style::default() };
@@ -158,7 +158,7 @@ pub fn draw_home(f: &mut Frame, app: &mut App) {
     }
 
     // ── FOOTER ──
-    let recent_count = app.recent_files.len().min(3);
+    let recent_count = app.recent_files.len().min(4);
     let wiki_sel = app.home_selected == 5 + recent_count;
     let github_sel = app.home_selected == 5 + recent_count + 1;
 
