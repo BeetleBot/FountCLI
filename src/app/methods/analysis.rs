@@ -623,10 +623,8 @@ impl App {
                         if !key.is_empty() {
                             for v in val.split(',') {
                                 let v_trimmed = v.trim();
-                                if !v_trimmed.is_empty() {
-                                    if key == "CAST" || key == "CHARACTER" {
-                                        self.characters.insert(v_trimmed.to_uppercase_1to1());
-                                    }
+                                if !v_trimmed.is_empty() && (key == "CAST" || key == "CHARACTER") {
+                                    self.characters.insert(v_trimmed.to_uppercase_1to1());
                                 }
                             }
                         }

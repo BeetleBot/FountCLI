@@ -62,6 +62,15 @@ pub fn draw_home(f: &mut Frame, app: &mut App) {
 
     let dashboard_area = horizontal_chunks[1];
 
+    // ── OUTLINE ──
+    let dashboard_block = ratatui::widgets::Block::default()
+        .borders(ratatui::widgets::Borders::ALL)
+        .border_type(ratatui::widgets::BorderType::Rounded)
+        .border_style(Style::default().fg(dim));
+    
+    let inner_dashboard_area = dashboard_block.inner(dashboard_area);
+    f.render_widget(dashboard_block, dashboard_area);
+
     // ── LOGO & VERSION ──
     let logo = [
         "      ░██     ░████                                     ░██    ",
@@ -79,6 +88,7 @@ pub fn draw_home(f: &mut Frame, app: &mut App) {
     ];
 
     let mut content = Vec::new();
+    content.push(Line::from("")); // Top padding
     
     // Logo
     let max_logo_w = logo.iter().map(|r| r.chars().count()).max().unwrap_or(1);
@@ -101,7 +111,7 @@ pub fn draw_home(f: &mut Frame, app: &mut App) {
     ]).alignment(Alignment::Center));
 
     content.push(Line::from(""));
-    content.push(Line::from(Span::styled("─".repeat(dashboard_area.width as usize), Style::default().fg(dim))));
+    content.push(Line::from(Span::styled("─".repeat(inner_dashboard_area.width.saturating_sub(4) as usize), Style::default().fg(dim))).alignment(Alignment::Center));
     content.push(Line::from(""));
 
     // ── SHORTCUTS ──
@@ -126,7 +136,7 @@ pub fn draw_home(f: &mut Frame, app: &mut App) {
         content.push(Line::from(""));
     }
 
-    content.push(Line::from(Span::styled("─".repeat(dashboard_area.width as usize), Style::default().fg(dim))));
+    content.push(Line::from(Span::styled("─".repeat(inner_dashboard_area.width.saturating_sub(4) as usize), Style::default().fg(dim))).alignment(Alignment::Center));
     content.push(Line::from(""));
 
     // ── RECENT FILES ──
@@ -143,7 +153,7 @@ pub fn draw_home(f: &mut Frame, app: &mut App) {
             ]).alignment(Alignment::Center));
             content.push(Line::from(""));
         }
-        content.push(Line::from(Span::styled("─".repeat(dashboard_area.width as usize), Style::default().fg(dim))));
+        content.push(Line::from(Span::styled("─".repeat(inner_dashboard_area.width.saturating_sub(4) as usize), Style::default().fg(dim))).alignment(Alignment::Center));
         content.push(Line::from(""));
     }
 
@@ -164,5 +174,6 @@ pub fn draw_home(f: &mut Frame, app: &mut App) {
         Span::styled("GitHub", if github_sel { Style::default().fg(normal_fg).add_modifier(Modifier::BOLD) } else { Style::default().fg(normal_fg) }),
     ]).alignment(Alignment::Center));
 
-    f.render_widget(Paragraph::new(content), dashboard_area);
+    f.render_widget(Paragraph::new(content), inner_dashboard_area);
 }
+
