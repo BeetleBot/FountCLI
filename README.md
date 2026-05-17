@@ -47,6 +47,10 @@ cargo install fount
 > 
 > AI was instrumental in helping me overcome technical hurdles, complicated logic, and the often frustrating nuances of software release workflows. Fount is the result of my creative vision and little bit of coding background, the open-source code that inspired me, and the intelligence of the agents that helped me build it. It is a tool I use daily, and I hope it serves you just as well.
 
+> [!IMPORTANT]
+> **A Note on Pagination**
+> Due to TUI constraints, page counts shown in the editor are only approximate. Layouts for A4 and US Letter may have up to a +/- 2 pages difference in the TUI view. The TUI pagination is an approximation; only the final export contains the true, definitive page count.
+
 ---
 
 ## ✨ Feature Showcase

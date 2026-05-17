@@ -377,6 +377,22 @@ pub fn draw(f: &mut Frame, app: &mut App) {
             visible.push(Line::raw(""));
         }
 
+        let first_screenplay_idx = app.types.iter().position(|&t| {
+            matches!(
+                t,
+                LineType::SceneHeading
+                    | LineType::Action
+                    | LineType::Character
+                    | LineType::DualDialogueCharacter
+                    | LineType::Parenthetical
+                    | LineType::Dialogue
+                    | LineType::Transition
+                    | LineType::Centered
+                    | LineType::Lyrics
+                    | LineType::Shot
+            )
+        }).unwrap_or(usize::MAX);
+
         let mirror_scenes = app.config.mirror_scene_numbers == crate::config::MirrorOption::Always;
 
         visible.extend(
@@ -395,7 +411,22 @@ pub fn draw(f: &mut Frame, app: &mut App) {
                     // 1. Line Number Gutter
                     let show_linenums = app.config.show_line_numbers && !app.config.focus_mode;
                     if global_pad >= gutter_w && show_linenums {
-                        if is_first_visual {
+                        let is_screenplay = match row.line_type {
+                            LineType::SceneHeading
+                            | LineType::Action
+                            | LineType::Character
+                            | LineType::DualDialogueCharacter
+                            | LineType::Parenthetical
+                            | LineType::Dialogue
+                            | LineType::Transition
+                            | LineType::Centered
+                            | LineType::Lyrics
+                            | LineType::Shot => true,
+                            LineType::Empty => row.line_idx >= first_screenplay_idx,
+                            _ => false,
+                        };
+
+                        if is_first_visual && is_screenplay {
                             let num_str = format!("{:>4}  ", row.line_idx + 1);
                             let num_style = if is_current_logical {
                                 Style::default().fg(mode_bg).add_modifier(Modifier::BOLD)

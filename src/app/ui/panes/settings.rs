@@ -147,23 +147,28 @@ pub fn draw_settings_modal(f: &mut Frame, app: &mut App, area: Rect) {
         &get_val(app.config.show_page_numbers),
         app.selected_setting == 11,
     ));
+    options.push(render_option(
+        &format!("{}Paper Size", get_icon("󰗚", "")),
+        &app.config.paper_size.to_uppercase(),
+        app.selected_setting == 12,
+    ));
 
     // Category: Writing
     options.push(render_header("WRITING"));
     options.push(render_option(
         &format!("{}Autocomplete", get_icon("󰧑", "")),
         &get_val(app.config.autocomplete),
-        app.selected_setting == 13,
+        app.selected_setting == 14,
     ));
     options.push(render_option(
         &format!("{}Auto (CONT'D)", get_icon("󰑔", "")),
         &get_val(app.config.auto_contd),
-        app.selected_setting == 14,
+        app.selected_setting == 15,
     ));
     options.push(render_option(
         &format!("{}Smart Breaks", get_icon("󰉓", "")),
         &get_val(app.config.auto_paragraph_breaks),
-        app.selected_setting == 15,
+        app.selected_setting == 16,
     ));
 
     // Category: System
@@ -183,12 +188,12 @@ pub fn draw_settings_modal(f: &mut Frame, app: &mut App, area: Rect) {
     options.push(render_option(
         &format!("{}Auto-Save", get_icon("󰆓", "")),
         &auto_save_val,
-        app.selected_setting == 17,
+        app.selected_setting == 18,
     ));
     options.push(render_option(
         &format!("{}Active Theme", get_icon("󰏘", "")),
         &app.config.theme,
-        app.selected_setting == 18,
+        app.selected_setting == 19,
     ));
 
 

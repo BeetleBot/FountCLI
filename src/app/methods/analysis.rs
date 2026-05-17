@@ -251,7 +251,7 @@ impl App {
     pub fn compute_xray(&mut self) {
         use std::collections::HashMap;
         use crate::app::{XRayData, XRayCharacter, XRayScene, PacingBlock, XRaySceneBreakdown};
-        use crate::types::LINES_PER_PAGE;
+        use crate::types::lines_per_page;
         use crate::layout::SCENE_NUM_RE;
 
         let mut char_stats: HashMap<String, (usize, usize)> = HashMap::new(); // name -> (words, lines)
@@ -359,7 +359,7 @@ impl App {
                             }
                         }
 
-                        let page_count = current_scene_visual_rows as f32 / LINES_PER_PAGE as f32;
+                        let page_count = current_scene_visual_rows as f32 / lines_per_page(&self.config.paper_size) as f32;
                         scenes.push(XRayScene {
                             label: current_scene_label.clone(),
                             scene_num: current_scene_num.clone(),
@@ -467,7 +467,7 @@ impl App {
                 }
             }
 
-            let page_count = current_scene_visual_rows as f32 / LINES_PER_PAGE as f32;
+            let page_count = current_scene_visual_rows as f32 / lines_per_page(&self.config.paper_size) as f32;
             scenes.push(XRayScene {
                 label: current_scene_label.clone(),
                 scene_num: current_scene_num,

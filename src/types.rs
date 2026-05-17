@@ -4,7 +4,20 @@ use ratatui::style::{Color, Modifier, Style};
 
 pub const PAGE_WIDTH: u16 = 60;
 
-pub const LINES_PER_PAGE: usize = 55;
+/// Lines per page for US Letter paper: (792 - 144) / 12 - 1 = 53
+pub const LINES_PER_PAGE_LETTER: usize = 53;
+
+/// Lines per page for A4 paper: (842 - 144) / 12 - 1 = 57
+pub const LINES_PER_PAGE_A4: usize = 57;
+
+/// Returns the correct lines-per-page for the given paper size string.
+pub fn lines_per_page(paper_size: &str) -> usize {
+    if paper_size.eq_ignore_ascii_case("letter") {
+        LINES_PER_PAGE_LETTER
+    } else {
+        LINES_PER_PAGE_A4
+    }
+}
 
 #[derive(Clone, Copy)]
 pub struct Fmt {

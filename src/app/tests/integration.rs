@@ -411,9 +411,9 @@ And Beat itself, of course: https://www.beat-app.fi/
                                                                  CUT TO:
 
             That alone is quite enough to write a proper screenplay. But
-            there's more! For instance, we also have these...                 2.
+            there's more! For instance, we also have these...
 
-     3      INT. EDEKA - ABEND
+     3      INT. EDEKA - ABEND                                                2.
 
             Unlike Beat, there's no full render or PDF export here, but
             you can always save your screenplay and open it in Beat to
@@ -459,7 +459,7 @@ And Beat itself, of course: https://www.beat-app.fi/
             working in Fount.
 
             You can find more information about the Fountain markup
-            language at https://www.fountain.io/                              3.
+            language at https://www.fountain.io/
 
             And Beat itself, of course: https://www.beat-app.fi/
 
@@ -471,3 +471,4 @@ And Beat itself, of course: https://www.beat-app.fi/
             "Reference render does not match expected output."
         );
     }
+

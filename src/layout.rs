@@ -7,7 +7,7 @@ use unicode_width::UnicodeWidthChar;
 use crate::config::Config;
 use crate::theme::Theme;
 use crate::formatting::{LineFormatting, has_markup_bytes, parse_formatting};
-use crate::types::{LINES_PER_PAGE, LineType, PAGE_WIDTH, get_marker_color};
+use crate::types::{LineType, PAGE_WIDTH, get_marker_color, lines_per_page};
 
 pub static SCENE_NUM_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^(.*?)\s*#([^#]+)#\s*$").unwrap());
@@ -167,6 +167,8 @@ pub fn is_printable(lt: LineType) -> bool {
             | LineType::Boneyard
             | LineType::Note
             | LineType::PageBreak
+            | LineType::Section
+            | LineType::Synopsis
     )
 }
 
@@ -286,7 +288,7 @@ pub fn build_layout(
 
     thread_local! {
         static CACHED_HASHES: RefCell<HashMap<usize, u64>> = RefCell::new(HashMap::new());
-        static LAST_PROD_TAGS: RefCell<bool> = RefCell::new(false);
+        static LAST_PROD_TAGS: RefCell<bool> = const { RefCell::new(false) };
     }
 
     let current_prod_tags = config.show_production_tags;
@@ -303,6 +305,7 @@ pub fn build_layout(
         CACHED_HASHES.with(|h| h.borrow_mut().clear());
     }
 
+    let lpp = lines_per_page(&config.paper_size);
     let mut rows: Vec<VisualRow> = Vec::with_capacity(lines.len() + 32);
     let mut last_speaking_character = String::new();
     let mut in_dual_dialogue = false;
@@ -330,12 +333,8 @@ pub fn build_layout(
             let mut cached = None;
             CACHED_HASHES.with(|hashes| {
                 let hashes = hashes.borrow();
-                if let Some(&h) = hashes.get(&i) {
-                    if h == line_hash && !cache[i].is_empty() {
-                        if cache[i][0].is_active == is_active {
-                            cached = Some(cache[i].clone());
-                        }
-                    }
+                if hashes.get(&i).is_some_and(|&h| h == line_hash) && !cache[i].is_empty() && cache[i][0].is_active == is_active {
+                    cached = Some(cache[i].clone());
                 }
             });
 
@@ -487,7 +486,7 @@ pub fn build_layout(
                         is_phantom: true,
                     });
                     printable_row_count += 1;
-                    if printable_row_count % LINES_PER_PAGE == 0 {
+                    if printable_row_count % lpp == 0 {
                         page_number += 1;
                         page_num_pending = true;
                     }
@@ -774,8 +773,8 @@ pub fn build_layout(
         });
 
         if !config.break_actions && lt == LineType::Action {
-            let current_page_remaining = LINES_PER_PAGE - (printable_row_count % LINES_PER_PAGE);
-            if logical_rows.len() > current_page_remaining && logical_rows.len() <= LINES_PER_PAGE {
+            let current_page_remaining = lpp - (printable_row_count % lpp);
+            if logical_rows.len() > current_page_remaining && logical_rows.len() <= lpp {
                 printable_row_count += current_page_remaining;
                 page_number += 1;
                 page_num_pending = true;
@@ -790,7 +789,7 @@ pub fn build_layout(
                     page_num_pending = false;
                 }
                 printable_row_count += 1;
-                if printable_row_count > 0 && printable_row_count % LINES_PER_PAGE == 0 {
+                if printable_row_count > 0 && printable_row_count % lpp == 0 {
                     page_number += 1;
                     page_num_pending = true;
                 }
@@ -941,6 +940,8 @@ mod layout_tests {
         assert!(!is_printable(LineType::Boneyard));
         assert!(!is_printable(LineType::MetadataTitle));
         assert!(!is_printable(LineType::PageBreak));
+        assert!(!is_printable(LineType::Section));
+        assert!(!is_printable(LineType::Synopsis));
     }
 
     #[test]
@@ -1151,8 +1152,9 @@ mod layout_tests {
             ..Default::default()
         };
 
-        let mut lines = vec!["".to_string(); 54];
-        let mut types = vec![LineType::Empty; 54];
+        let lpp = crate::types::lines_per_page(&config.paper_size);
+        let mut lines = vec!["".to_string(); lpp - 1];
+        let mut types = vec![LineType::Empty; lpp - 1];
 
         lines.push("A very long action that takes multiple visual lines on the screen because it exceeds the limit.".to_string());
         types.push(LineType::Action);
@@ -1418,8 +1420,10 @@ mod layout_tests {
     fn test_layout_page_number_skips_empty_lines() {
         let config = Config::default();
 
-        let mut lines = vec!["Text".to_string(); LINES_PER_PAGE];
-        let mut types = vec![LineType::Action; LINES_PER_PAGE];
+        let lpp = crate::types::lines_per_page(&config.paper_size);
+
+        let mut lines = vec!["Text".to_string(); lpp];
+        let mut types = vec![LineType::Action; lpp];
 
         lines.push("   ".to_string());
         types.push(LineType::Empty);
@@ -1533,8 +1537,9 @@ mod layout_tests {
             heading_spacing: 10,
             ..Config::default()
         };
-        let mut lines = vec!["Action".to_string(); crate::types::LINES_PER_PAGE - 2];
-        let mut types = vec![LineType::Action; crate::types::LINES_PER_PAGE - 2];
+        let lpp = crate::types::lines_per_page(&config.paper_size);
+        let mut lines = vec!["Action".to_string(); lpp - 2];
+        let mut types = vec![LineType::Action; lpp - 2];
 
         lines.push("INT. ROOM".to_string());
         types.push(LineType::SceneHeading);
