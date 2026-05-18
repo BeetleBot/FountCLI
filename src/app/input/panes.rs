@@ -1073,6 +1073,8 @@ impl App {
                             _ => {}
                         }
                     } else {
+                        self.card_is_moving = false;
+
                         match key.code {
                             KeyCode::Esc | KeyCode::Char('q') => {
                                 self.mode = AppMode::Normal;
@@ -1084,13 +1086,8 @@ impl App {
                                 }
                             }
                             KeyCode::Up => {
-                                let shift = key.modifiers.contains(KeyModifiers::SHIFT);
                                 if shift {
-                                    if self.selected_card_idx > 0 {
-                                        self.swap_cards(self.selected_card_idx, self.selected_card_idx - 1);
-                                        self.selected_card_idx -= 1;
-                                        *text_changed = true;
-                                    }
+                                    self.set_status("Index cards can only be moved one by one");
                                 } else {
                                     // Grid-aware Up: find card above
                                     let area = Rect::new(0, 0, 100, 100); // Dummy area for relative layout
@@ -1117,13 +1114,8 @@ impl App {
                                 }
                             }
                             KeyCode::Down => {
-                                let shift = key.modifiers.contains(KeyModifiers::SHIFT);
                                 if shift {
-                                    if self.selected_card_idx + 1 < cards_count {
-                                        self.swap_cards(self.selected_card_idx, self.selected_card_idx + 1);
-                                        self.selected_card_idx += 1;
-                                        *text_changed = true;
-                                    }
+                                    self.set_status("Index cards can only be moved one by one");
                                 } else {
                                     // Grid-aware Down: find card below
                                     let area = Rect::new(0, 0, 100, 100);
@@ -1150,10 +1142,30 @@ impl App {
                                 }
                             }
                             KeyCode::Left => {
-                                self.selected_card_idx = self.selected_card_idx.saturating_sub(1);
+                                if shift {
+                                    if self.selected_card_idx > 0 {
+                                        self.swap_cards(self.selected_card_idx, self.selected_card_idx - 1);
+                                        self.selected_card_idx -= 1;
+                                        self.card_is_moving = true;
+                                        *text_changed = true;
+                                    }
+                                } else {
+                                    self.selected_card_idx = self.selected_card_idx.saturating_sub(1);
+                                }
                             }
-                            KeyCode::Right if self.selected_card_idx + 1 < cards_count => {
-                                self.selected_card_idx += 1;
+                            KeyCode::Right => {
+                                if shift {
+                                    if self.selected_card_idx + 1 < cards_count {
+                                        self.swap_cards(self.selected_card_idx, self.selected_card_idx + 1);
+                                        self.selected_card_idx += 1;
+                                        self.card_is_moving = true;
+                                        *text_changed = true;
+                                    }
+                                } else {
+                                    if self.selected_card_idx + 1 < cards_count {
+                                        self.selected_card_idx += 1;
+                                    }
+                                }
                             }
                             KeyCode::Enter => {
                                 if let Some(card) = cards.get(self.selected_card_idx) {

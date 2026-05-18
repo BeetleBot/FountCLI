@@ -81,21 +81,42 @@ pub fn draw_index_cards(f: &mut Frame, app: &mut App, area: Rect) {
             // --- RENDER SECTION BANNER ---
             let mut border_style = Style::default().fg(section_color);
             if is_selected {
-                border_style = border_style.fg(accent).add_modifier(Modifier::BOLD);
+                if app.card_is_moving {
+                    border_style = theme.warning_style().add_modifier(Modifier::BOLD);
+                } else {
+                    border_style = border_style.fg(accent).add_modifier(Modifier::BOLD);
+                }
             }
             
+            let borders = Borders::ALL;
+
+            let border_type = if is_selected {
+                if app.card_is_moving {
+                    BorderType::Thick
+                } else {
+                    BorderType::Double
+                }
+            } else {
+                BorderType::Rounded
+            };
+
             let block = Block::default()
-                .borders(Borders::ALL)
-                .border_type(if is_selected { BorderType::Double } else { BorderType::Rounded })
+                .borders(borders)
+                .border_type(border_type)
                 .border_style(border_style)
                 .style(base_style);
             
             f.render_widget(block, card_rect);
 
             // Label
-            let tab_rect = Rect::new(card_rect.x + 1, card_rect.y, 12, 1);
+            let label_text = if is_selected && app.card_is_moving {
+                " SECTION [MOVING] "
+            } else {
+                " SECTION "
+            };
+            let tab_rect = Rect::new(card_rect.x + 1, card_rect.y, label_text.len() as u16, 1);
             f.render_widget(Paragraph::new(Line::from(vec![
-                Span::styled(" SECTION ", border_style),
+                Span::styled(label_text, border_style),
             ])), tab_rect);
 
             // Heading & Synopsis
@@ -124,12 +145,28 @@ pub fn draw_index_cards(f: &mut Frame, app: &mut App, area: Rect) {
             // --- RENDER SCENE CARD ---
             let mut border_style = theme.secondary_style();
             if is_selected {
-                border_style = Style::default().fg(accent).add_modifier(Modifier::BOLD);
+                if app.card_is_moving {
+                    border_style = theme.warning_style().add_modifier(Modifier::BOLD);
+                } else {
+                    border_style = Style::default().fg(accent).add_modifier(Modifier::BOLD);
+                }
             }
             
+            let borders = Borders::ALL;
+
+            let border_type = if is_selected {
+                if app.card_is_moving {
+                    BorderType::Thick
+                } else {
+                    BorderType::Double
+                }
+            } else {
+                BorderType::Rounded
+            };
+
             let block = Block::default()
-                .borders(Borders::ALL)
-                .border_type(if is_selected { BorderType::Double } else { BorderType::Rounded })
+                .borders(borders)
+                .border_type(border_type)
                 .border_style(border_style)
                 .style(base_style);
                 
@@ -138,12 +175,22 @@ pub fn draw_index_cards(f: &mut Frame, app: &mut App, area: Rect) {
             // Header Bar
             let header_bar_rect = Rect::new(card_rect.x + 1, card_rect.y, card_rect.width.saturating_sub(2), 1.min(card_rect.height));
             let header_label = if let Some(ref num) = card.scene_num {
-                format!(" SCENE {} ", num)
+                if is_selected && app.card_is_moving {
+                    format!(" SCENE {} [MOVING] ", num)
+                } else {
+                    format!(" SCENE {} ", num)
+                }
             } else {
-                " SCENE ".to_string()
+                if is_selected && app.card_is_moving {
+                    " SCENE [MOVING] ".to_string()
+                } else {
+                    " SCENE ".to_string()
+                }
             };
 
-            let label_style = if let Some(c) = card.color { 
+            let label_style = if is_selected && app.card_is_moving {
+                theme.warning_style().add_modifier(Modifier::BOLD)
+            } else if let Some(c) = card.color { 
                 Style::default().fg(c).add_modifier(Modifier::BOLD)
             } else { 
                 Style::default().fg(accent).add_modifier(Modifier::BOLD)

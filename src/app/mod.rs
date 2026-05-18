@@ -382,6 +382,7 @@ pub struct App {
     pub status_timer: Option<Instant>,
 
     pub selected_card_idx: usize,
+    pub card_is_moving: bool,
     pub is_card_editing: bool,
     pub is_heading_editing: bool,
     pub card_input_buffer: String,
@@ -579,6 +580,7 @@ impl App {
             status_timer: None,
 
             selected_card_idx: 0,
+            card_is_moving: false,
             is_card_editing: false,
             is_heading_editing: false,
             card_input_buffer: String::new(),

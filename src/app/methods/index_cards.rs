@@ -220,7 +220,7 @@ impl App {
                     current_col = 0;
                 }
                 card_rects.push(Rect::new(2, current_y, area.width.saturating_sub(4), section_h));
-                current_y += section_h;
+                current_y += section_h + 1;
             } else {
                 let x = 2 + (current_col * (card_w + gutter));
                 card_rects.push(Rect::new(x, current_y, card_w, scene_h - 1));

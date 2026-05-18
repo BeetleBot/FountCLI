@@ -112,6 +112,7 @@ pub fn get_all_shortcuts() -> Vec<Shortcut> {
         sc!("Production Tools", "/snap", "Snapshots", "Browse auto-saves", Info),
         sc!("Production Tools", "/xray", "Visual analysis", "Pacing & char charts", Info),
         sc!("Production Tools", "/ic", "Index cards", "Scene grid mode", Info),
+        sc!("Production Tools", "Shift+Left/Right", "Move Index Card", "Swap selected card horizontally", Accent),
         sc!("Production Tools", "/structure", "Structure templates", "Import story beats", Info),
         sc!("Production Tools", "/prodtags", "Production Tags", "Toggle metadata visibility", Success),
         sc!("Production Tools", "/renum", "Renumber", "Update all numbers", Warning),
