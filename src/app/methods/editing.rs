@@ -370,7 +370,26 @@ impl App {
         }
 
         let b = self.byte_of(self.cursor_y, self.cursor_x);
-        let tail = self.lines[self.cursor_y].split_off(b);
+        let line = &self.lines[self.cursor_y];
+        let remainder = &line[b..];
+        let trim_rem = remainder.trim();
+
+        let is_closing_markup = trim_rem == ")"
+            || trim_rem == "]]"
+            || trim_rem == "*/"
+            || trim_rem == "**"
+            || trim_rem == "*"
+            || trim_rem == "_"
+            || trim_rem == "<"
+            || trim_rem == "\""
+            || trim_rem == "'"
+            || (!trim_rem.is_empty() && trim_rem.chars().all(|ch| ")]*_<'\"".contains(ch)));
+
+        let tail = if is_closing_markup {
+            String::new()
+        } else {
+            self.lines[self.cursor_y].split_off(b)
+        };
         let head_is_empty = self.lines[self.cursor_y].is_empty();
 
         let breaks_paragraph = matches!(

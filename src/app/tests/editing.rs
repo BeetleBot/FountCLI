@@ -762,3 +762,44 @@ use super::*;
         assert!(success);
         assert_eq!(app.lines[0], "Hello Mathew, how is John?");
     }
+
+    #[test]
+    fn test_smart_newline_closing_delimiters() {
+        let mut app = create_empty_app();
+        app.lines = vec!["[[test]]".to_string()];
+        app.cursor_y = 0;
+        app.cursor_x = 6;
+        app.insert_newline(false);
+        assert_eq!(app.lines.len(), 2);
+        assert_eq!(app.lines[0], "[[test]]");
+        assert_eq!(app.lines[1], "");
+        assert_eq!(app.cursor_y, 1);
+        assert_eq!(app.cursor_x, 0);
+
+        let mut app2 = create_empty_app();
+        app2.lines = vec!["/* comment */".to_string()];
+        app2.cursor_y = 0;
+        app2.cursor_x = 11;
+        app2.insert_newline(false);
+        assert_eq!(app2.lines.len(), 2);
+        assert_eq!(app2.lines[0], "/* comment */");
+        assert_eq!(app2.lines[1], "");
+
+        let mut app3 = create_empty_app();
+        app3.lines = vec!["**bold**".to_string()];
+        app3.cursor_y = 0;
+        app3.cursor_x = 6;
+        app3.insert_newline(false);
+        assert_eq!(app3.lines.len(), 2);
+        assert_eq!(app3.lines[0], "**bold**");
+        assert_eq!(app3.lines[1], "");
+
+        let mut app4 = create_empty_app();
+        app4.lines = vec![">centered<".to_string()];
+        app4.cursor_y = 0;
+        app4.cursor_x = 9;
+        app4.insert_newline(false);
+        assert_eq!(app4.lines.len(), 2);
+        assert_eq!(app4.lines[0], ">centered<");
+        assert_eq!(app4.lines[1], "");
+    }
